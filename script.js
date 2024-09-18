@@ -154,11 +154,29 @@ async function showInfo(place) {
 }
 
 document.getElementById('searchButton').addEventListener('click', async () => {
-    const zipCode = document.getElementById('locationInput').value || '94102';  // Default to San Francisco
+    const locationInput = document.getElementById('locationInput');
+    if (!locationInput) {
+        console.error('Location input element not found');
+        return;
+    }
+    const zipCode = locationInput.value || '94102';  // Default to San Francisco
 
-    const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&zipCode=${zipCode}`);
-    const data = await response.json();
-    createGraph(data.results);
+    try {
+        const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&zipCode=${zipCode}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+            createGraph(data.results);
+        } else {
+            console.log('No results found');
+            d3.select("#graph").html("<p>No results found for this ZIP code.</p>");
+        }
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        d3.select("#graph").html("<p>Error fetching data. Please try again.</p>");
+    }
 });
 
 // Initial graph creation
