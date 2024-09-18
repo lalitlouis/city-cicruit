@@ -14,16 +14,23 @@ exports.handler = async function(event, context) {
     let url, params;
 
     if (action === 'nearbySearch') {
-      url = 'https://maps.googleapis.com/maps/api/place/textsearch/json';
+      // First, we need to convert ZIP code to coordinates
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${zipCode}&key=${API_KEY}`;
+      const geocodeResponse = await axios.get(geocodeUrl);
+      const { lat, lng } = geocodeResponse.data.results[0].geometry.location;
+
+      url = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
       params = {
-        query: `restaurants in ${zipCode}`,
+        location: `${lat},${lng}`,
+        radius: 5000, // 5km radius
+        type: 'restaurant', // or whatever type you're searching for
         key: API_KEY
       };
     } else if (action === 'placeDetails') {
       url = 'https://maps.googleapis.com/maps/api/place/details/json';
       params = {
         place_id: placeId,
-        fields: 'name,rating,formatted_phone_number,website,reviews,user_ratings_total,price_level,formatted_address',
+        fields: 'name,rating,formatted_phone_number,formatted_address,website,reviews,user_ratings_total,price_level',
         key: API_KEY
       };
     } else {
@@ -36,6 +43,14 @@ exports.handler = async function(event, context) {
       body: JSON.stringify(response.data)
     };
   } catch (error) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch data' }) };
+    console.error('Error details:', error);
+    return { 
+      statusCode: 500, 
+      body: JSON.stringify({ 
+        error: 'Failed to fetch data',
+        details: error.message,
+        stack: error.stack
+      }) 
+    };
   }
 };

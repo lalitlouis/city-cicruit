@@ -193,14 +193,18 @@ document.getElementById('searchButton').addEventListener('click', async () => {
         }
         const data = await response.json();
         if (data.results && data.results.length > 0) {
-            createGraph(data.results);
+            createGraph(data.results, zipCode);
         } else {
             console.log('No results found');
             d3.select("#graph").html("<p>No results found for this ZIP code.</p>");
         }
     } catch (error) {
         console.error('Error fetching data:', error);
-        d3.select("#graph").html("<p>Error fetching data. Please try again.</p>");
+        d3.select("#graph").html(`<p>Error fetching data: ${error.message}</p>`);
+        if (error.details) {
+            console.error('Error details:', error.details);
+            d3.select("#graph").append("p").text(`Error details: ${error.details}`);
+        }
     }
 });
 
