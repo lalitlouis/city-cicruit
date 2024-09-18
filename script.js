@@ -5,11 +5,13 @@ function calculateScore(place) {
 }
 
 function calculateNodeSize(place) {
+    if (place.id === "center") return 20;
     const score = calculateScore(place);
     return 5 + (score * 3); // Reduced base size from 10 to 5
 }
 
 function getNodeColor(place) {
+    if (place.id === "center") return "#FFD700";
     const score = calculateScore(place);
     if (score > 4) return "#4CAF50"; // Green for high scores
     if (score > 3) return "#FFC107"; // Yellow for medium scores
@@ -41,8 +43,9 @@ function createGraph(data, zipCode) {
     // Create a central node for the ZIP code
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
-    // Calculate distances and angles for other nodes
+    // Ensure each node has a unique id
     data.forEach((d, i) => {
+        d.id = d.place_id; // Use place_id as the unique id
         const angle = (i / data.length) * 2 * Math.PI;
         const distance = Math.random() * 200 + 100; // Random distance between 100 and 300
         d.x = centralNode.x + distance * Math.cos(angle);
@@ -58,7 +61,7 @@ function createGraph(data, zipCode) {
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
 
     // Create links from central node to others
-    const links = data.map(d => ({source: centralNode.id, target: d.place_id}));
+    const links = data.map(d => ({source: centralNode.id, target: d.id}));
 
     const link = g.append("g")
         .selectAll("line")
