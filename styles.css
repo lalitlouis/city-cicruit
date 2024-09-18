@@ -167,3 +167,26 @@ main {
 .tab-content.active {
     display: block;
 }
+
+
+.zoom-buttons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+}
+
+.zoom-buttons button {
+    background-color: rgba(255, 255, 255, 0.7);
+    color: #000;
+    border: none;
+    padding: 5px 10px;
+    margin: 0 5px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 4px;
+}
+
+.zoom-buttons button:hover {
+    background-color: rgba(255, 255, 255, 0.9);
+}

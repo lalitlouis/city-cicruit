@@ -375,12 +375,6 @@ function calculateNodeSize(place) {
 function createGraph(data) {
     // Clear previous content
     d3.select("#graph").html("");
-    d3.select("#infoName").text("");
-    d3.select("#infoRating").text("");
-    d3.select("#infoReviews").text("");
-    d3.select("#infoPopular").html("");
-    d3.select("#infoBestReviews").html("");
-    d3.select("#infoWorstReviews").html("");
 
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
@@ -388,26 +382,34 @@ function createGraph(data) {
     const svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
-        .attr("height", height)
-        .call(zoom)
-        .append("g");
+        .attr("height", height);
 
-        const simulation = d3.forceSimulation(data)
+    const g = svg.append("g");
+
+    const zoom = d3.zoom()
+        .scaleExtent([0.5, 5])
+        .on("zoom", (event) => {
+            g.attr("transform", event.transform);
+        });
+
+    svg.call(zoom);
+
+    const simulation = d3.forceSimulation(data)
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
 
-    const nodes = svg.selectAll("circle")
+    const nodes = g.selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("r", d => calculateNodeSize(d) * 1.5)  // Increase node size
+        .attr("r", d => calculateNodeSize(d) * 1.5)
         .style("fill", d => getNodeColor(calculateNodeScore(d)))
         .call(d3.drag()
             .on("start", dragstarted)
             .on("drag", dragged)
             .on("end", dragended));
-    
+
     // Add zoom buttons
     d3.select("#graph")
         .append("div")
@@ -449,32 +451,22 @@ function createGraph(data) {
             .attr("cy", d => d.y);
     });
 
-    
-}
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
 
-function zoomed(event) {
-    svg.attr("transform", event.transform);
-}
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
 
-const zoom = d3.zoom()
-    .scaleExtent([0.5, 5])
-    .on("zoom", zoomed);
-
-function dragstarted(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart();
-    d.fx = d.x;
-    d.fy = d.y;
-}
-
-function dragged(event, d) {
-    d.fx = event.x;
-    d.fy = event.y;
-}
-
-function dragended(event, d) {
-    if (!event.active) simulation.alphaTarget(0);
-    d.fx = null;
-    d.fy = null;
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
 }
 
 function calculateNodeScore(place) {
