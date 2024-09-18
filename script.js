@@ -5,9 +5,9 @@ function calculateScore(place) {
 }
 
 function calculateNodeSize(place) {
-    if (place.id === "center") return 20;
+    if (place.id === "center") return 30;
     const score = calculateScore(place);
-    return 5 + (score * 3); // Reduced base size from 10 to 5
+    return 3 + (score * 2); // Smaller base size
 }
 
 function getNodeColor(place) {
@@ -24,15 +24,14 @@ function createGraph(data, zipCode) {
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
 
-    const svg = d3.select("#graph")
+    svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
         .attr("height", height);
 
-    const g = svg.append("g");
+    g = svg.append("g");
 
-    // Add zoom functionality
-    const zoom = d3.zoom()
+    zoom = d3.zoom()
         .scaleExtent([0.5, 5])
         .on("zoom", (event) => {
             g.attr("transform", event.transform);
@@ -40,14 +39,12 @@ function createGraph(data, zipCode) {
 
     svg.call(zoom);
 
-    // Create a central node for the ZIP code
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
-    // Ensure each node has a unique id
     data.forEach((d, i) => {
-        d.id = d.place_id; // Use place_id as the unique id
+        d.id = d.place_id;
         const angle = (i / data.length) * 2 * Math.PI;
-        const distance = Math.random() * 200 + 100; // Random distance between 100 and 300
+        const distance = 200 + (i * 10); // Increase distance for each node
         d.x = centralNode.x + distance * Math.cos(angle);
         d.y = centralNode.y + distance * Math.sin(angle);
     });
@@ -55,12 +52,11 @@ function createGraph(data, zipCode) {
     const allNodes = [centralNode, ...data];
 
     const simulation = d3.forceSimulation(allNodes)
-        .force("link", d3.forceLink().id(d => d.id))
-        .force("charge", d3.forceManyBody().strength(-300))
+        .force("link", d3.forceLink().id(d => d.id).distance(d => d.source.id === "center" ? 200 : 50))
+        .force("charge", d3.forceManyBody().strength(-1000))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 5));
 
-    // Create links from central node to others
     const links = data.map(d => ({source: centralNode.id, target: d.id}));
 
     const link = g.append("g")
@@ -69,21 +65,28 @@ function createGraph(data, zipCode) {
         .enter().append("line")
         .attr("stroke", "#999")
         .attr("stroke-opacity", 0.6)
-        .attr("stroke-width", d => Math.sqrt(d.value));
+        .attr("stroke-width", 1);
 
     const node = g.append("g")
         .selectAll("circle")
         .data(allNodes)
         .enter().append("circle")
-        .attr("r", d => d.id === "center" ? 20 : calculateNodeSize(d))
-        .attr("fill", d => d.id === "center" ? "#FFD700" : getNodeColor(d))
-        .call(d3.drag()
-            .on("start", dragstarted)
-            .on("drag", dragged)
-            .on("end", dragended));
+        .attr("r", d => calculateNodeSize(d))
+        .attr("fill", d => getNodeColor(d))
+        .on("click", (event, d) => showInfo(d));
+
+    const label = g.append("g")
+        .selectAll("text")
+        .data(allNodes)
+        .enter().append("text")
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "central")
+        .text(d => d.id === "center" ? d.name : d.name.substring(0, 10) + "...")
+        .attr("font-size", d => d.id === "center" ? "14px" : "10px")
+        .attr("fill", "white");
 
     node.append("title")
-        .text(d => d.name);
+        .text(d => d.id === "center" ? `ZIP: ${d.name}` : `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}`);
 
     simulation
         .nodes(allNodes)
@@ -102,82 +105,80 @@ function createGraph(data, zipCode) {
         node
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
-    }
 
-    function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-    }
-
-    function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-    }
-
-    function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
+        label
+            .attr("x", d => d.x)
+            .attr("y", d => d.y);
     }
 }
 
 async function showInfo(place) {
-    const response = await fetch(`/.netlify/functions/googlePlaces?action=placeDetails&placeId=${place.place_id}`);
-    const data = await response.json();
-    const placeDetails = data.result;
-
-    d3.select("#infoPanel").html("");
-
-    const infoCard = d3.select("#infoPanel").append("div")
-        .attr("class", "info-card");
-
-    infoCard.append("h2").text(placeDetails.name);
-    
-    const ratingContainer = infoCard.append("div")
-        .attr("class", "rating-container info-item");
-
-    ratingContainer.append("i")
-        .attr("class", "fas fa-star")
-        .style("color", "#FFC107");
-
-    const starRating = ratingContainer.append("span")
-        .attr("class", "star-rating");
-    
-    for (let i = 0; i < 5; i++) {
-        starRating.append("span")
-            .text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
+    if (place.id === "center") {
+        d3.select("#infoPanel").html(`<h2>ZIP Code: ${place.name}</h2>`);
+        return;
     }
 
-    ratingContainer.append("span")
-        .attr("class", "review-count")
-        .text(` (${placeDetails.user_ratings_total} reviews)`);
+    try {
+        const response = await fetch(`/.netlify/functions/googlePlaces?action=placeDetails&placeId=${place.place_id}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        const placeDetails = data.result;
 
-    infoCard.append("div")
-        .attr("class", "info-item")
-        .html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
+        const infoCard = d3.select("#infoPanel").html("").append("div")
+            .attr("class", "info-card");
 
-    infoCard.append("div")
-        .attr("class", "info-item")
-        .html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
+        infoCard.append("h2").text(placeDetails.name);
+        
+        const ratingContainer = infoCard.append("div")
+            .attr("class", "rating-container info-item");
 
-    infoCard.append("div")
-        .attr("class", "info-item")
-        .html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
+        ratingContainer.append("i")
+            .attr("class", "fas fa-star")
+            .style("color", "#FFC107");
 
-    infoCard.append("div")
-        .attr("class", "info-item")
-        .html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
+        const starRating = ratingContainer.append("span")
+            .attr("class", "star-rating");
+        
+        for (let i = 0; i < 5; i++) {
+            starRating.append("span")
+                .text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
+        }
 
-    if (placeDetails.reviews && placeDetails.reviews.length > 0) {
-        const reviewsContainer = infoCard.append("div");
-        reviewsContainer.append("h3").text("Top Reviews:");
-        placeDetails.reviews.slice(0, 3).forEach(review => {
-            const sentiment = review.rating >= 4 ? 'positive' : 'negative';
-            reviewsContainer.append("div")
-                .attr("class", "review-item")
-                .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
-        });
+        ratingContainer.append("span")
+            .attr("class", "review-count")
+            .text(` (${placeDetails.user_ratings_total} reviews)`);
+
+        infoCard.append("div")
+            .attr("class", "info-item")
+            .html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
+
+        infoCard.append("div")
+            .attr("class", "info-item")
+            .html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
+
+        infoCard.append("div")
+            .attr("class", "info-item")
+            .html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
+
+        infoCard.append("div")
+            .attr("class", "info-item")
+            .html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
+
+        if (placeDetails.reviews && placeDetails.reviews.length > 0) {
+            const reviewsContainer = infoCard.append("div");
+            reviewsContainer.append("h3").text("Top Reviews:");
+            placeDetails.reviews.slice(0, 3).forEach(review => {
+                const sentiment = review.rating >= 4 ? 'positive' : 'negative';
+                reviewsContainer.append("div")
+                    .attr("class", "review-item")
+                    .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching place details:', error);
+        d3.select("#infoPanel").html(`<p>Error fetching place details: ${error.message}</p>`);
     }
 }
 
