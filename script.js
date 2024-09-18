@@ -16,20 +16,21 @@ function getNodeColor(place) {
     return "#FF5722"; // Orange for lower scores
 }
 
-function createGraph(data) {
+function createGraph(data, zipCode) {
     d3.select("#graph").html("");
 
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
 
-    svg = d3.select("#graph")
+    const svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
         .attr("height", height);
 
-    g = svg.append("g");
+    const g = svg.append("g");
 
-    zoom = d3.zoom()
+    // Add zoom functionality
+    const zoom = d3.zoom()
         .scaleExtent([0.5, 5])
         .on("zoom", (event) => {
             g.attr("transform", event.transform);
@@ -37,62 +38,68 @@ function createGraph(data) {
 
     svg.call(zoom);
 
-    const simulation = d3.forceSimulation(data)
+    // Create a central node for the ZIP code
+    const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
+    
+    // Calculate distances and angles for other nodes
+    data.forEach((d, i) => {
+        const angle = (i / data.length) * 2 * Math.PI;
+        const distance = Math.random() * 200 + 100; // Random distance between 100 and 300
+        d.x = centralNode.x + distance * Math.cos(angle);
+        d.y = centralNode.y + distance * Math.sin(angle);
+    });
+
+    const allNodes = [centralNode, ...data];
+
+    const simulation = d3.forceSimulation(allNodes)
+        .force("link", d3.forceLink().id(d => d.id))
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2))
-        .force("x", d3.forceX(width / 2).strength(0.1))
-        .force("y", d3.forceY(height / 2).strength(0.1));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
 
-    const nodes = g.selectAll("circle")
-        .data(data)
-        .enter()
-        .append("circle")
-        .attr("r", d => calculateNodeSize(d))
-        .style("fill", d => getNodeColor(d))
+    // Create links from central node to others
+    const links = data.map(d => ({source: centralNode.id, target: d.place_id}));
+
+    const link = g.append("g")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("stroke", "#999")
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-width", d => Math.sqrt(d.value));
+
+    const node = g.append("g")
+        .selectAll("circle")
+        .data(allNodes)
+        .enter().append("circle")
+        .attr("r", d => d.id === "center" ? 20 : calculateNodeSize(d))
+        .attr("fill", d => d.id === "center" ? "#FFD700" : getNodeColor(d))
         .call(d3.drag()
             .on("start", dragstarted)
             .on("drag", dragged)
             .on("end", dragended));
 
-    d3.select("#graph")
-        .append("div")
-        .attr("class", "zoom-buttons")
-        .html('<button id="zoomIn">+</button><button id="zoomOut">-</button>');
+    node.append("title")
+        .text(d => d.name);
 
-    d3.select("#zoomIn").on("click", () => {
-        svg.transition().call(zoom.scaleBy, 1.2);
-    });
+    simulation
+        .nodes(allNodes)
+        .on("tick", ticked);
 
-    d3.select("#zoomOut").on("click", () => {
-        svg.transition().call(zoom.scaleBy, 0.8);
-    });
+    simulation.force("link")
+        .links(links);
 
-    const tooltip = d3.select("body").append("div")
-        .attr("class", "node-tooltip")
-        .style("opacity", 0);
+    function ticked() {
+        link
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
 
-    nodes.on("mouseover", (event, d) => {
-        tooltip.transition()
-            .duration(200)
-            .style("opacity", .9);
-        tooltip.html(`${d.name}<br/>Rating: ${d.rating}<br/>Reviews: ${d.user_ratings_total}`)
-            .style("left", (event.pageX + 10) + "px")
-            .style("top", (event.pageY - 28) + "px");
-    })
-    .on("mouseout", () => {
-        tooltip.transition()
-            .duration(500)
-            .style("opacity", 0);
-    });
-
-    nodes.on("click", (event, d) => showInfo(d));
-
-    simulation.on("tick", () => {
-        nodes
-            .attr("cx", d => boundNode(d.x, 0, width))
-            .attr("cy", d => boundNode(d.y, 0, height));
-    });
+        node
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y);
+    }
 
     function dragstarted(event, d) {
         if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -101,18 +108,14 @@ function createGraph(data) {
     }
 
     function dragged(event, d) {
-        d.fx = boundNode(event.x, 0, width);
-        d.fy = boundNode(event.y, 0, height);
+        d.fx = event.x;
+        d.fy = event.y;
     }
 
     function dragended(event, d) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
-    }
-
-    function boundNode(val, min, max) {
-        return Math.max(min, Math.min(max, val));
     }
 }
 
@@ -123,14 +126,17 @@ async function showInfo(place) {
 
     d3.select("#infoPanel").html("");
 
-    const infoContent = d3.select("#infoPanel").append("div")
-        .attr("class", "tab-content active")
-        .attr("id", "infoTab");
+    const infoCard = d3.select("#infoPanel").append("div")
+        .attr("class", "info-card");
 
-    infoContent.append("h2").text(placeDetails.name);
+    infoCard.append("h2").text(placeDetails.name);
     
-    const ratingContainer = infoContent.append("div")
-        .attr("class", "rating-container");
+    const ratingContainer = infoCard.append("div")
+        .attr("class", "rating-container info-item");
+
+    ratingContainer.append("i")
+        .attr("class", "fas fa-star")
+        .style("color", "#FFC107");
 
     const starRating = ratingContainer.append("span")
         .attr("class", "star-rating");
@@ -144,16 +150,29 @@ async function showInfo(place) {
         .attr("class", "review-count")
         .text(` (${placeDetails.user_ratings_total} reviews)`);
 
-    infoContent.append("p").text(`Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
-    infoContent.append("p").html(`Address: <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
-    infoContent.append("p").text(`Phone: ${placeDetails.formatted_phone_number || 'N/A'}`);
-    infoContent.append("p").html(`Website: ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
+    infoCard.append("div")
+        .attr("class", "info-item")
+        .html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
+
+    infoCard.append("div")
+        .attr("class", "info-item")
+        .html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
+
+    infoCard.append("div")
+        .attr("class", "info-item")
+        .html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
+
+    infoCard.append("div")
+        .attr("class", "info-item")
+        .html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
 
     if (placeDetails.reviews && placeDetails.reviews.length > 0) {
-        const reviewsList = infoContent.append("div").append("h3").text("Top Reviews:").append("ul");
+        const reviewsContainer = infoCard.append("div");
+        reviewsContainer.append("h3").text("Top Reviews:");
         placeDetails.reviews.slice(0, 3).forEach(review => {
             const sentiment = review.rating >= 4 ? 'positive' : 'negative';
-            reviewsList.append("li")
+            reviewsContainer.append("div")
+                .attr("class", "review-item")
                 .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
         });
     }
