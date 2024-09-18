@@ -124,6 +124,18 @@ main {
     margin-bottom: 0.5em;
 }
 
+.rating-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5em;
+}
+
+.review-count {
+    margin-left: 0.5em;
+    font-size: 0.9em;
+    color: #7f8c8d;
+}
+
 .tab-container {
     display: flex;
     margin-bottom: 1em;

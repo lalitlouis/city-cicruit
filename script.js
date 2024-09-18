@@ -388,7 +388,9 @@ function createGraph(data) {
     const svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
-        .attr("height", height);
+        .attr("height", height)
+        .call(zoom)
+        .append("g");
 
         const simulation = d3.forceSimulation(data)
         .force("charge", d3.forceManyBody().strength(-300))
@@ -405,6 +407,20 @@ function createGraph(data) {
             .on("start", dragstarted)
             .on("drag", dragged)
             .on("end", dragended));
+    
+    // Add zoom buttons
+    d3.select("#graph")
+        .append("div")
+        .attr("class", "zoom-buttons")
+        .html('<button id="zoomIn">+</button><button id="zoomOut">-</button>');
+
+    d3.select("#zoomIn").on("click", () => {
+        svg.transition().call(zoom.scaleBy, 1.2);
+    });
+
+    d3.select("#zoomOut").on("click", () => {
+        svg.transition().call(zoom.scaleBy, 0.8);
+    });
 
     // Add tooltips
     const tooltip = d3.select("body").append("div")
@@ -433,22 +449,32 @@ function createGraph(data) {
             .attr("cy", d => d.y);
     });
 
-    function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-    }
+    
+}
 
-    function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-    }
+function zoomed(event) {
+    svg.attr("transform", event.transform);
+}
 
-    function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-    }
+const zoom = d3.zoom()
+    .scaleExtent([0.5, 5])
+    .on("zoom", zoomed);
+
+function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+}
+
+function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+}
+
+function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
 }
 
 function calculateNodeScore(place) {
@@ -505,7 +531,10 @@ function showInfo(place) {
 
     infoContent.append("h2").text(place.name);
     
-    const starRating = infoContent.append("div")
+    const ratingContainer = infoContent.append("div")
+        .attr("class", "rating-container");
+
+    const starRating = ratingContainer.append("span")
         .attr("class", "star-rating");
     
     for (let i = 0; i < 5; i++) {
@@ -513,7 +542,11 @@ function showInfo(place) {
             .text(i < Math.round(place.rating) ? "★" : "☆");
     }
 
-    infoContent.append("p").text(`Reviews: ${place.reviews}`);
+    ratingContainer.append("span")
+        .attr("class", "review-count")
+        .text(` (${place.reviews} reviews)`);
+
+    
 
     const popularItems = place.popularItems || place.keyAttractions;
     const popularList = infoContent.append("div").append("h3").text("Popular Items:").append("ul");
