@@ -475,17 +475,29 @@ function showInfo(place) {
         .attr("data-tab", "info")
         .text("Info");
 
-    if (place.type === "restaurants") {
-        tabContainer.append("button")
-            .attr("class", "tab")
-            .attr("data-tab", "menu")
-            .text("Menu");
-    } else if (place.type === "museums") {
-        tabContainer.append("button")
-            .attr("class", "tab")
-            .attr("data-tab", "artifacts")
-            .text("Artifacts");
-    }
+        if (place.type === "restaurant") {
+            tabContainer.append("button")
+                .attr("class", "tab")
+                .attr("data-tab", "menu")
+                .text("Menu");
+            
+            const menuContent = d3.select("#infoPanel").append("div")
+                .attr("class", "tab-content")
+                .attr("id", "menuTab")
+                .append("h3")
+                .text("Menu coming soon...");
+        } else if (place.type === "museum") {
+            tabContainer.append("button")
+                .attr("class", "tab")
+                .attr("data-tab", "artifacts")
+                .text("Artifacts");
+            
+            const artifactsContent = d3.select("#infoPanel").append("div")
+                .attr("class", "tab-content")
+                .attr("id", "artifactsTab")
+                .append("h3")
+                .text("Artifacts coming soon...");
+        }
 
     const infoContent = d3.select("#infoPanel").append("div")
         .attr("class", "tab-content active")
