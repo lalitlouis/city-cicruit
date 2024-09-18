@@ -1,58 +1,64 @@
 let svg, g, zoom;
 
-function calculateScore(place) {
-    return (place.rating * Math.log(place.user_ratings_total + 1)) / 5;
+let currentData = [];
+let zipLat, zipLng;
+
+function calculateScore(place, option) {
+    switch (option) {
+        case 'rating':
+            return place.rating;
+        case 'reviews':
+            return Math.log(place.user_ratings_total + 1);
+        case 'distance':
+            return 1 / (place.distance / 1000 + 1); // Inverse of distance in km
+        case 'price':
+            return place.price_level ? place.price_level : 2; // Default to mid-range if no price level
+        default:
+            return 1;
+    }
 }
 
-function calculateNodeSize(place) {
-    if (place.id === "center") return 40;
-    return Math.max(30, place.name.length * 3); // Increase size based on name length
+function getNodeColor(score, option) {
+    let hue;
+    switch (option) {
+        case 'rating':
+        case 'reviews':
+            hue = 120 * (score / 5); // Green (120) for high scores, red (0) for low
+            break;
+        case 'distance':
+            hue = 120 * score; // Green for close, red for far
+            break;
+        case 'price':
+            hue = 120 * (1 - (score - 1) / 3); // Green for cheap, red for expensive
+            break;
+        default:
+            hue = 200;
+    }
+    return `hsl(${hue}, 100%, 50%)`;
 }
 
-function getNodeColor(place) {
-    if (place.id === "center") return "#FFD700";
-    const score = calculateScore(place);
-    if (score > 4) return "#4CAF50";
-    if (score > 3) return "#FFC107";
-    return "#FF5722";
+function createGraph(data, zipCode, lat, lng) {
+    currentData = data;
+    zipLat = lat;
+    zipLng = lng;
+
+    updateGraph(d3.select('#scoreOption').property('value'));
 }
 
-function deg2rad(deg) {
-    return deg * (Math.PI/180);
-}
-
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1);
-    const dLon = deg2rad(lon2 - lon1);
-    const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2)
-    ; 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    const d = R * c; // Distance in km
-    return d * 1000; // Convert to meters
-}
-
-function deg2rad(deg) {
-    return deg * (Math.PI/180);
-}
-
-function createGraph(data, zipCode, zipLat, zipLng) {
+function updateGraph(option) {
     d3.select("#graph").html("");
 
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
 
-    svg = d3.select("#graph")
+    const svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
         .attr("height", height);
 
-    g = svg.append("g");
+    const g = svg.append("g");
 
-    zoom = d3.zoom()
+    const zoom = d3.zoom()
         .scaleExtent([0.5, 5])
         .on("zoom", (event) => {
             g.attr("transform", event.transform);
@@ -62,81 +68,50 @@ function createGraph(data, zipCode, zipLat, zipLng) {
 
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
-    // Calculate distances
-    data.forEach(d => {
-        d.distance = calculateDistance(zipLat, zipLng, d.geometry.location.lat, d.geometry.location.lng);
+    currentData.forEach(d => {
+        if (!d.distance) {
+            d.distance = calculateDistance(zipLat, zipLng, d.geometry.location.lat, d.geometry.location.lng);
+        }
+        d.score = calculateScore(d, option);
     });
 
-    // Sort data by distance
-    data.sort((a, b) => a.distance - b.distance);
+    const maxScore = Math.max(...currentData.map(d => d.score));
 
-    // Use the first 20 results or less
-    data = data.slice(0, 20);
-
-    const maxDistance = Math.max(...data.map(d => d.distance));
-
-    data.forEach((d, i) => {
+    currentData.forEach((d, i) => {
         d.id = d.place_id;
-        const angle = (i / data.length) * 2 * Math.PI;
-        // Reduce the multiplier to shorten the edges
-        const distance = (d.distance / maxDistance) * Math.min(width, height) * 0.3;
-        d.x = centralNode.x + distance * Math.cos(angle);
-        d.y = centralNode.y + distance * Math.sin(angle);
+        const angle = (i / currentData.length) * 2 * Math.PI;
+        const radius = Math.min(width, height) * 0.4;
+        d.x = centralNode.x + radius * Math.cos(angle);
+        d.y = centralNode.y + radius * Math.sin(angle);
     });
 
-    const allNodes = [centralNode, ...data];
+    const allNodes = [centralNode, ...currentData];
 
     const simulation = d3.forceSimulation(allNodes)
-        .force("link", d3.forceLink().id(d => d.id).distance(d => d.source.id === "center" ? d.target.distance : 50))
-        .force("charge", d3.forceManyBody().strength(-2000))
+        .force("charge", d3.forceManyBody().strength(-200))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 5));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
-    const links = data.map(d => ({source: centralNode.id, target: d.id, distance: d.distance}));
-
-    const link = g.append("g")
-        .selectAll("line")
-        .data(links)
-        .enter().append("line")
-        .attr("stroke", "#999")
-        .attr("stroke-opacity", 0.6)
-        .attr("stroke-width", 1);
-
-    const node = g.append("g")
-        .selectAll("circle")
+    const node = g.selectAll("circle")
         .data(allNodes)
         .enter().append("circle")
-        .attr("r", d => calculateNodeSize(d))
-        .attr("fill", d => getNodeColor(d))
+        .attr("r", d => d.id === "center" ? 20 : calculateNodeSize(d, maxScore))
+        .attr("fill", d => d.id === "center" ? "#FFD700" : getNodeColor(d.score, option))
         .on("click", (event, d) => showInfo(d));
 
-    const label = g.append("g")
-        .selectAll("text")
+    const label = g.selectAll("text")
         .data(allNodes)
         .enter().append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "central")
         .text(d => d.name)
         .attr("font-size", d => d.id === "center" ? "14px" : "10px")
-        .attr("fill", "white");
+        .attr("fill", "black");
 
     node.append("title")
         .text(d => d.id === "center" ? `ZIP: ${d.name}` : `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}\nDistance: ${d.distance.toFixed(2)} meters`);
 
-    simulation
-        .nodes(allNodes)
-        .on("tick", ticked);
-
-    simulation.force("link")
-        .links(links);
-
-    function ticked() {
-        link
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
-
+    simulation.on("tick", () => {
         node
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
@@ -144,8 +119,19 @@ function createGraph(data, zipCode, zipLat, zipLng) {
         label
             .attr("x", d => d.x)
             .attr("y", d => d.y);
-    }
+    });
 }
+
+function calculateNodeSize(place, maxScore) {
+    if (place.id === "center") return 20;
+    return 5 + (place.score / maxScore) * 20;
+}
+
+// Add event listener for dropdown
+d3.select('#scoreOption').on('change', function() {
+    updateGraph(this.value);
+});
+
 
 async function showInfo(place) {
     if (place.id === "center") {
