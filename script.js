@@ -17,7 +17,25 @@ function getNodeColor(place) {
     return "#FF5722";
 }
 
-function createGraph(data, zipCode) {
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radius of the earth in km
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2)
+    ; 
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const d = R * c; // Distance in km
+    return d * 1000; // Convert to meters
+}
+
+function deg2rad(deg) {
+    return deg * (Math.PI/180);
+}
+
+function createGraph(data, zipCode, zipLat, zipLng) {
     d3.select("#graph").html("");
 
     const width = document.getElementById('graph').clientWidth;
@@ -40,7 +58,10 @@ function createGraph(data, zipCode) {
 
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
-    // Calculate max distance for scaling
+    // Calculate distances and find max distance
+    data.forEach(d => {
+        d.distance = calculateDistance(zipLat, zipLng, d.geometry.location.lat, d.geometry.location.lng);
+    });
     const maxDistance = Math.max(...data.map(d => d.distance));
 
     data.forEach((d, i) => {
@@ -222,13 +243,25 @@ document.getElementById('searchButton').addEventListener('click', async () => {
     const zipCode = locationInput.value || '94102';  // Default to San Francisco
 
     try {
-        const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&zipCode=${zipCode}`);
+        // First, get the coordinates for the ZIP code
+        const geocodeResponse = await fetch(`/.netlify/functions/googlePlaces?action=geocode&zipCode=${zipCode}`);
+        if (!geocodeResponse.ok) {
+            throw new Error(`HTTP error! status: ${geocodeResponse.status}`);
+        }
+        const geocodeData = await geocodeResponse.json();
+        if (!geocodeData.results || geocodeData.results.length === 0) {
+            throw new Error('Unable to find coordinates for the given ZIP code');
+        }
+        const { lat, lng } = geocodeData.results[0].geometry.location;
+
+        // Now perform the nearby search
+        const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         if (data.results && data.results.length > 0) {
-            createGraph(data.results, zipCode);
+            createGraph(data.results, zipCode, lat, lng);
         } else {
             console.log('No results found');
             d3.select("#graph").html("<p>No results found for this ZIP code.</p>");

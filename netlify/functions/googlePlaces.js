@@ -33,8 +33,15 @@ exports.handler = async function(event, context) {
         fields: 'name,rating,formatted_phone_number,formatted_address,website,reviews,user_ratings_total,price_level',
         key: API_KEY
       };
-    } else {
-      return { statusCode: 400, body: 'Invalid action' };
+    } else if (action === 'geocode') {
+        url = 'https://maps.googleapis.com/maps/api/geocode/json';
+        params = {
+          address: zipCode,
+          key: API_KEY
+        };
+    }
+      else {
+        return { statusCode: 400, body: 'Invalid action' };
     }
 
     const response = await axios.get(url, { params });
