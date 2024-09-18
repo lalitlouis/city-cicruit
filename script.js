@@ -17,6 +17,10 @@ function getNodeColor(place) {
     return "#FF5722";
 }
 
+function deg2rad(deg) {
+    return deg * (Math.PI/180);
+}
+
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the earth in km
     const dLat = deg2rad(lat2 - lat1);
@@ -269,10 +273,6 @@ document.getElementById('searchButton').addEventListener('click', async () => {
     } catch (error) {
         console.error('Error fetching data:', error);
         d3.select("#graph").html(`<p>Error fetching data: ${error.message}</p>`);
-        if (error.details) {
-            console.error('Error details:', error.details);
-            d3.select("#graph").append("p").text(`Error details: ${error.details}`);
-        }
     }
 });
 

@@ -8,17 +8,18 @@ exports.handler = async function(event, context) {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const { action, zipCode, placeId } = queryStringParameters;
+  const { action, zipCode, lat, lng, placeId } = queryStringParameters;
 
   try {
     let url, params;
 
-    if (action === 'nearbySearch') {
-      // First, we need to convert ZIP code to coordinates
-      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${zipCode}&key=${API_KEY}`;
-      const geocodeResponse = await axios.get(geocodeUrl);
-      const { lat, lng } = geocodeResponse.data.results[0].geometry.location;
-
+    if (action === 'geocode') {
+      url = 'https://maps.googleapis.com/maps/api/geocode/json';
+      params = {
+        address: zipCode,
+        key: API_KEY
+      };
+    } else if (action === 'nearbySearch') {
       url = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
       params = {
         location: `${lat},${lng}`,
@@ -33,15 +34,8 @@ exports.handler = async function(event, context) {
         fields: 'name,rating,formatted_phone_number,formatted_address,website,reviews,user_ratings_total,price_level',
         key: API_KEY
       };
-    } else if (action === 'geocode') {
-        url = 'https://maps.googleapis.com/maps/api/geocode/json';
-        params = {
-          address: zipCode,
-          key: API_KEY
-        };
-    }
-      else {
-        return { statusCode: 400, body: 'Invalid action' };
+    } else {
+      return { statusCode: 400, body: 'Invalid action' };
     }
 
     const response = await axios.get(url, { params });
