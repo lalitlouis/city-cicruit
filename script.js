@@ -1,15 +1,19 @@
 let svg, g, zoom;
 
+function calculateScore(place) {
+    return (place.rating * Math.log(place.user_ratings_total + 1)) / 5;
+}
+
 function calculateNodeSize(place) {
-    return 10 + (place.user_ratings_total / 100) * (place.rating);
+    const score = calculateScore(place);
+    return 5 + (score * 3); // Reduced base size from 10 to 5
 }
 
 function getNodeColor(place) {
-    const score = (place.rating * place.user_ratings_total) / 100;
-    const hue = Math.min(score * 10, 120);
-    const saturation = Math.min(score * 5, 100);
-    const lightness = 50;
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    const score = calculateScore(place);
+    if (score > 4) return "#4CAF50"; // Green for high scores
+    if (score > 3) return "#FFC107"; // Yellow for medium scores
+    return "#FF5722"; // Orange for lower scores
 }
 
 function createGraph(data) {
@@ -141,14 +145,16 @@ async function showInfo(place) {
         .text(` (${placeDetails.user_ratings_total} reviews)`);
 
     infoContent.append("p").text(`Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
-    infoContent.append("p").text(`Address: ${placeDetails.formatted_address}`);
+    infoContent.append("p").html(`Address: <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
     infoContent.append("p").text(`Phone: ${placeDetails.formatted_phone_number || 'N/A'}`);
     infoContent.append("p").html(`Website: ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
 
     if (placeDetails.reviews && placeDetails.reviews.length > 0) {
         const reviewsList = infoContent.append("div").append("h3").text("Top Reviews:").append("ul");
         placeDetails.reviews.slice(0, 3).forEach(review => {
-            reviewsList.append("li").text(`"${review.text}" - Rating: ${review.rating}`);
+            const sentiment = review.rating >= 4 ? 'positive' : 'negative';
+            reviewsList.append("li")
+                .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
         });
     }
 }

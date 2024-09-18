@@ -1,117 +1,66 @@
 body {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Arial', sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f5f7fa;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
+    background-color: #f4f4f4;
 }
 
 header {
     background-color: #2c3e50;
-    color: #ecf0f1;
+    color: white;
     text-align: center;
     padding: 1em;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
 header h1 {
-    font-size: 2.5em;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
-    letter-spacing: 2px;
     margin: 0;
+    font-size: 2.5em;
+    font-weight: 300;
+    letter-spacing: 2px;
 }
 
 nav {
+    background-color: #34495e;
     padding: 1em;
-    background-color: #ffffff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
 }
 
-select, input, button {
-    font-family: 'Roboto', sans-serif;
-    font-size: 1em;
-    padding: 0.5em 1em;
-    margin: 0 0.5em;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+#locationInput {
+    padding: 0.5em;
+    width: 200px;
+    margin-right: 1em;
 }
 
 #searchButton {
+    padding: 0.5em 1em;
     background-color: #3498db;
     color: white;
     border: none;
-    padding: 0.5em 1em;
     cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-#searchButton:hover {
-    background-color: #2980b9;
 }
 
 main {
     display: flex;
-    flex: 1;
-    overflow: hidden;
-    padding: 1em;
-    background-color: #ffffff;
-    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+    height: calc(100vh - 130px);
 }
 
-
 #graph {
-    flex: 7;
-    background-color: #000000;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    overflow: hidden;
+    flex: 2;
+    background-color: #ecf0f1; /* Light gray background for node canvas */
     position: relative;
 }
 
 #infoPanel {
-    flex: 3;
+    flex: 1;
     padding: 1em;
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    margin-left: 1em;
     overflow-y: auto;
-}
-
-#infoPanel h2 {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 0.5em;
-}
-
-#infoPanel h3 {
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 500;
-    color: #34495e;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
-}
-
-#infoPanel ul {
-    padding-left: 1.5em;
-}
-
-#infoPanel p, #infoPanel li {
-    font-family: 'Roboto', sans-serif;
-    color: #444;
-    line-height: 1.6;
+    background-color: white;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
 }
 
 .node-tooltip {
     position: absolute;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 5px;
     border-radius: 3px;
@@ -119,56 +68,53 @@ main {
     pointer-events: none;
 }
 
-.star-rating {
-    font-size: 1.2em;
-    color: #f1c40f;
-    margin-bottom: 0.5em;
+.rating-container {
+    margin-bottom: 1em;
 }
 
-.rating-container {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5em;
+.star-rating {
+    color: #f1c40f;
+    font-size: 1.2em;
 }
 
 .review-count {
-    margin-left: 0.5em;
     font-size: 0.9em;
     color: #7f8c8d;
 }
 
-.tab-container {
-    display: flex;
-    margin-bottom: 1em;
-    border-bottom: 1px solid #ddd;
+#infoPanel h2 {
+    margin-top: 0;
+    color: #2c3e50;
 }
 
-.tab {
-    padding: 0.5em 1em;
-    background-color: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 500;
-    color: #7f8c8d;
+#infoPanel p {
+    margin: 0.5em 0;
 }
 
-.tab.active {
-    border-bottom-color: #3498db;
-    color: #3498db;
+#infoPanel ul {
+    padding-left: 20px;
 }
 
-.tab-content {
-    display: none;
-    padding-top: 1em;
+#infoPanel li {
+    font-size: 0.9em;
+    margin-bottom: 0.5em;
 }
 
-.tab-content.active {
-    display: block;
+.review-sentiment {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
 }
 
+.review-sentiment.positive {
+    background-color: #4CAF50;
+}
+
+.review-sentiment.negative {
+    background-color: #FF5722;
+}
 
 .zoom-buttons {
     position: absolute;
@@ -179,15 +125,9 @@ main {
 
 .zoom-buttons button {
     background-color: rgba(255, 255, 255, 0.7);
-    color: #000;
     border: none;
     padding: 5px 10px;
     margin: 0 5px;
     cursor: pointer;
     font-size: 16px;
-    border-radius: 4px;
-}
-
-.zoom-buttons button:hover {
-    background-color: rgba(255, 255, 255, 0.9);
 }
