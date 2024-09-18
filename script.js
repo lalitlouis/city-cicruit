@@ -365,7 +365,23 @@ const mockData = {
     ]
   };
 
+  function calculateNodeSize(place) {
+    // This is a simple calculation, you can make it more complex
+    const popularityFactor = place.reviews / 100;
+    const ratingFactor = place.rating;
+    return 5 + (popularityFactor * ratingFactor);
+}
+
 function createGraph(data) {
+    // Clear previous content
+    d3.select("#graph").html("");
+    d3.select("#infoName").text("");
+    d3.select("#infoRating").text("");
+    d3.select("#infoReviews").text("");
+    d3.select("#infoPopular").html("");
+    d3.select("#infoBestReviews").html("");
+    d3.select("#infoWorstReviews").html("");
+
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
 
@@ -375,34 +391,65 @@ function createGraph(data) {
         .attr("height", height);
 
     const simulation = d3.forceSimulation(data)
-        .force("charge", d3.forceManyBody().strength(-50))
+        .force("charge", d3.forceManyBody().strength(-100))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(20));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d)));
 
     const nodes = svg.selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("r", d => 10 + d.rating * 2)
-        .style("fill", d => d.type === "restaurants" ? "red" : "blue");
+        .attr("r", d => calculateNodeSize(d))
+        .style("fill", d => d.type === "restaurants" ? "#ff9999" : "#99ccff");
+
+    // Add tooltips
+    const tooltip = d3.select("body").append("div")
+        .attr("class", "node-tooltip")
+        .style("opacity", 0);
+
+    nodes.on("mouseover", (event, d) => {
+        tooltip.transition()
+            .duration(200)
+            .style("opacity", .9);
+        tooltip.html(`${d.name}<br/>Rating: ${d.rating}<br/>Reviews: ${d.reviews}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+    })
+    .on("mouseout", () => {
+        tooltip.transition()
+            .duration(500)
+            .style("opacity", 0);
+    });
+
+    nodes.on("click", (event, d) => showInfo(d));
 
     simulation.on("tick", () => {
         nodes
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
     });
-
-    nodes.on("click", (event, d) => showInfo(d));
 }
 
 function showInfo(place) {
-    const infoPanel = document.getElementById('infoPanel');
-    infoPanel.innerHTML = `
-        <h2>${place.name}</h2>
-        <p>Rating: ${place.rating}</p>
-        <p>Reviews: ${place.reviews}</p>
-        <p>Type: ${place.type}</p>
-    `;
+    d3.select("#infoName").text(place.name);
+    d3.select("#infoRating").text(`Rating: ${place.rating}`);
+    d3.select("#infoReviews").text(`Reviews: ${place.reviews}`);
+
+    const popularItems = place.popularItems || place.keyAttractions;
+    d3.select("#infoPopular").html("");
+    popularItems.forEach(item => {
+        d3.select("#infoPopular").append("li").text(item);
+    });
+
+    d3.select("#infoBestReviews").html("");
+    place.bestReviews.forEach(review => {
+        d3.select("#infoBestReviews").append("li").text(review);
+    });
+
+    d3.select("#infoWorstReviews").html("");
+    place.worstReviews.forEach(review => {
+        d3.select("#infoWorstReviews").append("li").text(review);
+    });
 }
 
 document.getElementById('searchButton').addEventListener('click', () => {
@@ -411,3 +458,6 @@ document.getElementById('searchButton').addEventListener('click', () => {
     // For now, we're ignoring the search input and just using mock data
     createGraph(mockData[placeType]);
 });
+
+// Initial graph creation
+createGraph(mockData.restaurants);
