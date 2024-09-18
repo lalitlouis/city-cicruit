@@ -62,16 +62,24 @@ function createGraph(data, zipCode, zipLat, zipLng) {
 
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
-    // Calculate distances and find max distance
+    // Calculate distances
     data.forEach(d => {
         d.distance = calculateDistance(zipLat, zipLng, d.geometry.location.lat, d.geometry.location.lng);
     });
+
+    // Sort data by distance
+    data.sort((a, b) => a.distance - b.distance);
+
+    // Use the first 20 results or less
+    data = data.slice(0, 20);
+
     const maxDistance = Math.max(...data.map(d => d.distance));
 
     data.forEach((d, i) => {
         d.id = d.place_id;
         const angle = (i / data.length) * 2 * Math.PI;
-        const distance = (d.distance / maxDistance) * Math.min(width, height) * 0.4; // Scale distance
+        // Reduce the multiplier to shorten the edges
+        const distance = (d.distance / maxDistance) * Math.min(width, height) * 0.3;
         d.x = centralNode.x + distance * Math.cos(angle);
         d.y = centralNode.y + distance * Math.sin(angle);
     });
@@ -162,7 +170,7 @@ async function showInfo(place) {
 
         // Info tab content
         const infoContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "infoTab");
-        populateInfoTab(infoContent, placeDetails);
+        populateInfoTab(infoContent, placeDetails || place);
 
         // Menu tab content
         const menuContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "menuTab").style("display", "none");
@@ -179,20 +187,33 @@ async function showInfo(place) {
 function populateInfoTab(infoContent, placeDetails) {
     infoContent.append("h2").text(placeDetails.name);
     
-    const ratingContainer = infoContent.append("div").attr("class", "rating-container info-item");
-    ratingContainer.append("i").attr("class", "fas fa-star").style("color", "#FFC107");
-    
-    const starRating = ratingContainer.append("span").attr("class", "star-rating");
-    for (let i = 0; i < 5; i++) {
-        starRating.append("span").text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
+    if (placeDetails.rating) {
+        const ratingContainer = infoContent.append("div").attr("class", "rating-container info-item");
+        ratingContainer.append("i").attr("class", "fas fa-star").style("color", "#FFC107");
+        
+        const starRating = ratingContainer.append("span").attr("class", "star-rating");
+        for (let i = 0; i < 5; i++) {
+            starRating.append("span").text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
+        }
+        
+        ratingContainer.append("span").attr("class", "review-count").text(` (${placeDetails.user_ratings_total || 0} reviews)`);
     }
-    
-    ratingContainer.append("span").attr("class", "review-count").text(` (${placeDetails.user_ratings_total} reviews)`);
 
-    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
-    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
-    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
-    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
+    if (placeDetails.price_level) {
+        infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
+    }
+
+    if (placeDetails.formatted_address || placeDetails.vicinity) {
+        infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address || placeDetails.vicinity)}" target="_blank">${placeDetails.formatted_address || placeDetails.vicinity}</a>`);
+    }
+
+    if (placeDetails.formatted_phone_number) {
+        infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number}`);
+    }
+
+    if (placeDetails.website) {
+        infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-globe"></i> <a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>`);
+    }
 
     // Add pickup service links
     const pickupServices = infoContent.append("div").attr("class", "pickup-services");
@@ -234,7 +255,9 @@ function populateMenuTab(menuContent) {
 function showTab(tabName) {
     d3.selectAll(".tab").classed("active", false);
     d3.selectAll(".tab-content").style("display", "none");
-    d3.select(`.tab:contains("${tabName[0].toUpperCase() + tabName.slice(1)}")`).classed("active", true);
+    d3.select(`.tab`).filter(function() {
+        return d3.select(this).text().toLowerCase() === tabName.toLowerCase();
+    }).classed("active", true);
     d3.select(`#${tabName}Tab`).style("display", "block");
 }
 
