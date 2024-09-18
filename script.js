@@ -5,17 +5,16 @@ function calculateScore(place) {
 }
 
 function calculateNodeSize(place) {
-    if (place.id === "center") return 30;
-    const score = calculateScore(place);
-    return 3 + (score * 2); // Smaller base size
+    if (place.id === "center") return 40;
+    return Math.max(30, place.name.length * 3); // Increase size based on name length
 }
 
 function getNodeColor(place) {
     if (place.id === "center") return "#FFD700";
     const score = calculateScore(place);
-    if (score > 4) return "#4CAF50"; // Green for high scores
-    if (score > 3) return "#FFC107"; // Yellow for medium scores
-    return "#FF5722"; // Orange for lower scores
+    if (score > 4) return "#4CAF50";
+    if (score > 3) return "#FFC107";
+    return "#FF5722";
 }
 
 function createGraph(data, zipCode) {
@@ -41,10 +40,13 @@ function createGraph(data, zipCode) {
 
     const centralNode = { id: "center", name: zipCode, x: width / 2, y: height / 2 };
     
+    // Calculate max distance for scaling
+    const maxDistance = Math.max(...data.map(d => d.distance));
+
     data.forEach((d, i) => {
         d.id = d.place_id;
         const angle = (i / data.length) * 2 * Math.PI;
-        const distance = 200 + (i * 10); // Increase distance for each node
+        const distance = (d.distance / maxDistance) * Math.min(width, height) * 0.4; // Scale distance
         d.x = centralNode.x + distance * Math.cos(angle);
         d.y = centralNode.y + distance * Math.sin(angle);
     });
@@ -52,12 +54,12 @@ function createGraph(data, zipCode) {
     const allNodes = [centralNode, ...data];
 
     const simulation = d3.forceSimulation(allNodes)
-        .force("link", d3.forceLink().id(d => d.id).distance(d => d.source.id === "center" ? 200 : 50))
-        .force("charge", d3.forceManyBody().strength(-1000))
+        .force("link", d3.forceLink().id(d => d.id).distance(d => d.source.id === "center" ? d.target.distance : 50))
+        .force("charge", d3.forceManyBody().strength(-2000))
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 5));
 
-    const links = data.map(d => ({source: centralNode.id, target: d.id}));
+    const links = data.map(d => ({source: centralNode.id, target: d.id, distance: d.distance}));
 
     const link = g.append("g")
         .selectAll("line")
@@ -81,12 +83,12 @@ function createGraph(data, zipCode) {
         .enter().append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "central")
-        .text(d => d.id === "center" ? d.name : d.name.substring(0, 10) + "...")
+        .text(d => d.name)
         .attr("font-size", d => d.id === "center" ? "14px" : "10px")
         .attr("fill", "white");
 
     node.append("title")
-        .text(d => d.id === "center" ? `ZIP: ${d.name}` : `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}`);
+        .text(d => d.id === "center" ? `ZIP: ${d.name}` : `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}\nDistance: ${d.distance.toFixed(2)} meters`);
 
     simulation
         .nodes(allNodes)
@@ -126,60 +128,89 @@ async function showInfo(place) {
         const data = await response.json();
         const placeDetails = data.result;
 
-        const infoCard = d3.select("#infoPanel").html("").append("div")
-            .attr("class", "info-card");
+        const infoPanel = d3.select("#infoPanel").html("");
 
-        infoCard.append("h2").text(placeDetails.name);
-        
-        const ratingContainer = infoCard.append("div")
-            .attr("class", "rating-container info-item");
+        // Create tabs
+        const tabContainer = infoPanel.append("div").attr("class", "tab-container");
+        tabContainer.append("button").attr("class", "tab active").text("Info").on("click", () => showTab("info"));
+        tabContainer.append("button").attr("class", "tab").text("Menu").on("click", () => showTab("menu"));
 
-        ratingContainer.append("i")
-            .attr("class", "fas fa-star")
-            .style("color", "#FFC107");
+        // Info tab content
+        const infoContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "infoTab");
+        populateInfoTab(infoContent, placeDetails);
 
-        const starRating = ratingContainer.append("span")
-            .attr("class", "star-rating");
-        
-        for (let i = 0; i < 5; i++) {
-            starRating.append("span")
-                .text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
-        }
+        // Menu tab content
+        const menuContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "menuTab").style("display", "none");
+        populateMenuTab(menuContent);
 
-        ratingContainer.append("span")
-            .attr("class", "review-count")
-            .text(` (${placeDetails.user_ratings_total} reviews)`);
-
-        infoCard.append("div")
-            .attr("class", "info-item")
-            .html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
-
-        infoCard.append("div")
-            .attr("class", "info-item")
-            .html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
-
-        infoCard.append("div")
-            .attr("class", "info-item")
-            .html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
-
-        infoCard.append("div")
-            .attr("class", "info-item")
-            .html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
-
-        if (placeDetails.reviews && placeDetails.reviews.length > 0) {
-            const reviewsContainer = infoCard.append("div");
-            reviewsContainer.append("h3").text("Top Reviews:");
-            placeDetails.reviews.slice(0, 3).forEach(review => {
-                const sentiment = review.rating >= 4 ? 'positive' : 'negative';
-                reviewsContainer.append("div")
-                    .attr("class", "review-item")
-                    .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
-            });
-        }
+        // Show info tab by default
+        showTab("info");
     } catch (error) {
         console.error('Error fetching place details:', error);
         d3.select("#infoPanel").html(`<p>Error fetching place details: ${error.message}</p>`);
     }
+}
+
+function populateInfoTab(infoContent, placeDetails) {
+    infoContent.append("h2").text(placeDetails.name);
+    
+    const ratingContainer = infoContent.append("div").attr("class", "rating-container info-item");
+    ratingContainer.append("i").attr("class", "fas fa-star").style("color", "#FFC107");
+    
+    const starRating = ratingContainer.append("span").attr("class", "star-rating");
+    for (let i = 0; i < 5; i++) {
+        starRating.append("span").text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
+    }
+    
+    ratingContainer.append("span").attr("class", "review-count").text(` (${placeDetails.user_ratings_total} reviews)`);
+
+    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-dollar-sign"></i> Price: ${placeDetails.price_level ? '$'.repeat(placeDetails.price_level) : 'N/A'}`);
+    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-map-marker-alt"></i> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeDetails.formatted_address)}" target="_blank">${placeDetails.formatted_address}</a>`);
+    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-phone"></i> ${placeDetails.formatted_phone_number || 'N/A'}`);
+    infoContent.append("div").attr("class", "info-item").html(`<i class="fas fa-globe"></i> ${placeDetails.website ? `<a href="${placeDetails.website}" target="_blank">${placeDetails.website}</a>` : 'N/A'}`);
+
+    // Add pickup service links
+    const pickupServices = infoContent.append("div").attr("class", "pickup-services");
+    pickupServices.append("h3").text("Order for Pickup:");
+    pickupServices.append("a").attr("href", `https://www.doordash.com/search/${encodeURIComponent(placeDetails.name)}/`).attr("target", "_blank").text("DoorDash");
+    pickupServices.append("a").attr("href", `https://www.ubereats.com/search?q=${encodeURIComponent(placeDetails.name)}`).attr("target", "_blank").text("Uber Eats");
+    pickupServices.append("a").attr("href", `https://www.grubhub.com/search?queryText=${encodeURIComponent(placeDetails.name)}`).attr("target", "_blank").text("Grubhub");
+
+    if (placeDetails.reviews && placeDetails.reviews.length > 0) {
+        const reviewsContainer = infoContent.append("div");
+        reviewsContainer.append("h3").text("Top Reviews:");
+        placeDetails.reviews.slice(0, 3).forEach(review => {
+            const sentiment = review.rating >= 4 ? 'positive' : 'negative';
+            reviewsContainer.append("div")
+                .attr("class", "review-item")
+                .html(`<span class="review-sentiment ${sentiment}"></span>${review.text.substring(0, 100)}... - Rating: ${review.rating}`);
+        });
+    }
+}
+
+function populateMenuTab(menuContent) {
+    menuContent.append("h3").text("Menu");
+    menuContent.append("p").text("Menu information is not available through the Google Places API. You can visit the restaurant's website or use a food delivery service to view their menu.");
+
+    // Add a mock search and sort functionality
+    const searchContainer = menuContent.append("div").attr("class", "menu-search");
+    searchContainer.append("input").attr("type", "text").attr("placeholder", "Search menu items...");
+    searchContainer.append("button").text("Search").on("click", () => alert("This is a mock search functionality."));
+
+    const sortContainer = menuContent.append("div").attr("class", "menu-sort");
+    sortContainer.append("label").text("Sort by: ");
+    const select = sortContainer.append("select");
+    select.append("option").text("Price: Low to High");
+    select.append("option").text("Price: High to Low");
+    select.append("option").text("Popularity");
+    select.on("change", () => alert("This is a mock sort functionality."));
+}
+
+function showTab(tabName) {
+    d3.selectAll(".tab").classed("active", false);
+    d3.selectAll(".tab-content").style("display", "none");
+    d3.select(`.tab:contains("${tabName[0].toUpperCase() + tabName.slice(1)}")`).classed("active", true);
+    d3.select(`#${tabName}Tab`).style("display", "block");
 }
 
 document.getElementById('searchButton').addEventListener('click', async () => {

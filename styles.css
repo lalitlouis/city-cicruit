@@ -114,3 +114,52 @@ main {
 .review-sentiment.negative {
     background-color: #FF5722;
 }
+
+.tab-container {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab {
+    background-color: #f1f1f1;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 10px 20px;
+    transition: 0.3s;
+}
+
+.tab:hover {
+    background-color: #ddd;
+}
+
+.tab.active {
+    background-color: #ccc;
+}
+
+.tab-content {
+    display: none;
+    padding: 20px;
+}
+
+.pickup-services {
+    margin-top: 20px;
+}
+
+.pickup-services a {
+    display: inline-block;
+    margin-right: 10px;
+    padding: 5px 10px;
+    background-color: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+}
+
+.menu-search, .menu-sort {
+    margin-bottom: 10px;
+}
+
+.menu-search input, .menu-sort select {
+    margin-right: 10px;
+}
