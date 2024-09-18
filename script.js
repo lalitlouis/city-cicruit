@@ -397,7 +397,9 @@ function createGraph(data) {
     const simulation = d3.forceSimulation(data)
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2))
+        .force("x", d3.forceX(width / 2).strength(0.1))
+        .force("y", d3.forceY(height / 2).strength(0.1));
 
     const nodes = g.selectAll("circle")
         .data(data)
@@ -447,8 +449,8 @@ function createGraph(data) {
 
     simulation.on("tick", () => {
         nodes
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
+            .attr("cx", d => boundNode(d.x, 0, width))
+            .attr("cy", d => boundNode(d.y, 0, height));
     });
 
     function dragstarted(event, d) {
@@ -458,14 +460,18 @@ function createGraph(data) {
     }
 
     function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
+        d.fx = boundNode(event.x, 0, width);
+        d.fy = boundNode(event.y, 0, height);
     }
 
     function dragended(event, d) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
+    }
+
+    function boundNode(val, min, max) {
+        return Math.max(min, Math.min(max, val));
     }
 }
 
