@@ -57,12 +57,8 @@ function getNodeColor(score, option) {
     return `hsl(${hue}, 100%, 50%)`;
 }
 
-function createGraph(data, zipCode, lat, lng) {
+function createGraph(data) {
     currentData = data;
-    zipLat = lat;
-    zipLng = lng;
-    currentZipCode = zipCode;
-
     updateGraph(d3.select('#scoreOption').property('value'));
 }
 
@@ -87,50 +83,35 @@ function updateGraph(option) {
 
     svg.call(zoom);
 
-    const centralNode = { id: "center", name: currentZipCode, x: width / 2, y: height / 2 };
-    
     currentData.forEach(d => {
-        if (!d.distance) {
-            d.distance = calculateDistance(zipLat, zipLng, d.geometry.location.lat, d.geometry.location.lng);
-        }
         d.score = calculateScore(d, option);
+        d.color = getRandomColor();
     });
 
     const maxScore = Math.max(...currentData.map(d => d.score));
 
-    currentData.forEach((d, i) => {
-        d.id = d.place_id;
-        const angle = (i / currentData.length) * 2 * Math.PI;
-        const radius = Math.min(width, height) * 0.4;
-        d.x = centralNode.x + radius * Math.cos(angle);
-        d.y = centralNode.y + radius * Math.sin(angle);
-    });
-
-    const allNodes = [centralNode, ...currentData];
-
-    const simulation = d3.forceSimulation(allNodes)
-        .force("charge", d3.forceManyBody().strength(-200))
+    const simulation = d3.forceSimulation(currentData)
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
     const node = g.selectAll("circle")
-        .data(allNodes)
+        .data(currentData)
         .enter().append("circle")
-        .attr("r", d => d.id === "center" ? 20 : calculateNodeSize(d, maxScore))
-        .attr("fill", d => d.id === "center" ? "#FFD700" : getNodeColor(d.score, option))
+        .attr("r", d => calculateNodeSize(d, maxScore))
+        .attr("fill", d => d.color)
         .on("click", (event, d) => showInfo(d));
 
     const label = g.selectAll("text")
-        .data(allNodes)
+        .data(currentData)
         .enter().append("text")
         .attr("text-anchor", "middle")
         .attr("dominant-baseline", "central")
         .text(d => d.name)
-        .attr("font-size", d => d.id === "center" ? "14px" : "10px")
+        .attr("font-size", "10px")
         .attr("fill", "black");
 
     node.append("title")
-        .text(d => d.id === "center" ? `ZIP: ${d.name}` : `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}\nDistance: ${d.distance.toFixed(2)} meters`);
+        .text(d => `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}`);
 
     simulation.on("tick", () => {
         node
@@ -144,8 +125,17 @@ function updateGraph(option) {
 }
 
 function calculateNodeSize(place, maxScore) {
-    if (place.id === "center") return 20;
-    return 5 + (place.score / maxScore) * 20;
+    return 5 + (place.score / maxScore) * 30;
+}
+
+function getRandomColor() {
+    const colors = [
+        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", 
+        "#98D8C8", "#F06292", "#AED581", "#7986CB", 
+        "#FFD54F", "#4DB6AC", "#9575CD", "#4FC3F7", 
+        "#81C784", "#DCE775", "#FFB74D", "#A1887F"
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
 }
 
 // Add event listener for dropdown
