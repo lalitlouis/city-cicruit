@@ -390,17 +390,21 @@ function createGraph(data) {
         .attr("width", width)
         .attr("height", height);
 
-    const simulation = d3.forceSimulation(data)
-        .force("charge", d3.forceManyBody().strength(-100))
+        const simulation = d3.forceSimulation(data)
+        .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d)));
+        .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d) + 2));
 
     const nodes = svg.selectAll("circle")
         .data(data)
         .enter()
         .append("circle")
-        .attr("r", d => calculateNodeSize(d))
-        .style("fill", d => getNodeColor(calculateNodeScore(d)));
+        .attr("r", d => calculateNodeSize(d) * 1.5)  // Increase node size
+        .style("fill", d => getNodeColor(calculateNodeScore(d)))
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
 
     // Add tooltips
     const tooltip = d3.select("body").append("div")
@@ -428,6 +432,23 @@ function createGraph(data) {
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
     });
+
+    function dragstarted(event, d) {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+        d.fx = event.x;
+        d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
 }
 
 function calculateNodeScore(place) {
@@ -444,24 +465,79 @@ function getNodeColor(score) {
 }
 
 function showInfo(place) {
-    d3.select("#infoName").text(place.name);
-    d3.select("#infoRating").text(`Rating: ${place.rating}`);
-    d3.select("#infoReviews").text(`Reviews: ${place.reviews}`);
+    d3.select("#infoPanel").html("");
+
+    const tabContainer = d3.select("#infoPanel").append("div")
+        .attr("class", "tab-container");
+
+    tabContainer.append("button")
+        .attr("class", "tab active")
+        .attr("data-tab", "info")
+        .text("Info");
+
+    if (place.type === "restaurants") {
+        tabContainer.append("button")
+            .attr("class", "tab")
+            .attr("data-tab", "menu")
+            .text("Menu");
+    } else if (place.type === "museums") {
+        tabContainer.append("button")
+            .attr("class", "tab")
+            .attr("data-tab", "artifacts")
+            .text("Artifacts");
+    }
+
+    const infoContent = d3.select("#infoPanel").append("div")
+        .attr("class", "tab-content active")
+        .attr("id", "infoTab");
+
+    infoContent.append("h2").text(place.name);
+    
+    const starRating = infoContent.append("div")
+        .attr("class", "star-rating");
+    
+    for (let i = 0; i < 5; i++) {
+        starRating.append("span")
+            .text(i < Math.round(place.rating) ? "★" : "☆");
+    }
+
+    infoContent.append("p").text(`Reviews: ${place.reviews}`);
 
     const popularItems = place.popularItems || place.keyAttractions;
-    d3.select("#infoPopular").html("");
+    const popularList = infoContent.append("div").append("h3").text("Popular Items:").append("ul");
     popularItems.forEach(item => {
-        d3.select("#infoPopular").append("li").text(item);
+        popularList.append("li").text(item);
     });
 
-    d3.select("#infoBestReviews").html("");
+    const bestReviews = infoContent.append("div").append("h3").text("Best Reviews:").append("ul");
     place.bestReviews.forEach(review => {
-        d3.select("#infoBestReviews").append("li").text(review);
+        bestReviews.append("li").text(review);
     });
 
-    d3.select("#infoWorstReviews").html("");
+    const worstReviews = infoContent.append("div").append("h3").text("Worst Reviews:").append("ul");
     place.worstReviews.forEach(review => {
-        d3.select("#infoWorstReviews").append("li").text(review);
+        worstReviews.append("li").text(review);
+    });
+
+    if (place.type === "restaurants") {
+        const menuContent = d3.select("#infoPanel").append("div")
+            .attr("class", "tab-content")
+            .attr("id", "menuTab")
+            .append("h3")
+            .text("Menu coming soon...");
+    } else if (place.type === "museums") {
+        const artifactsContent = d3.select("#infoPanel").append("div")
+            .attr("class", "tab-content")
+            .attr("id", "artifactsTab")
+            .append("h3")
+            .text("Artifacts coming soon...");
+    }
+
+    d3.selectAll(".tab").on("click", function() {
+        d3.selectAll(".tab").classed("active", false);
+        d3.selectAll(".tab-content").classed("active", false);
+        d3.select(this).classed("active", true);
+        d3.select(`#${d3.select(this).attr("data-tab")}Tab`).classed("active", true);
     });
 }
 
