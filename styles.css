@@ -1,0 +1,32 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 1em;
+}
+
+nav {
+    padding: 1em;
+    background-color: #f0f0f0;
+}
+
+main {
+    display: flex;
+}
+
+#graph {
+    width: 70%;
+    height: 600px;
+}
+
+#infoPanel {
+    width: 30%;
+    padding: 1em;
+    background-color: #f9f9f9;
+}

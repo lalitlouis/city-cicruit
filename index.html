@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Circuit</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>City Circuit</h1>
+    </header>
+    <nav>
+        <select id="placeType">
+            <option value="restaurants">Restaurants</option>
+            <option value="museums">Museums</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Enter city name">
+        <button id="searchButton">Search</button>
+    </nav>
+    <main>
+        <div id="graph"></div>
+        <div id="infoPanel"></div>
+    </main>
+    <script src="script.js"></script>
+</body>
+</html>
