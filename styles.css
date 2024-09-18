@@ -3,6 +3,9 @@ body {
     margin: 0;
     padding: 0;
     background-color: #f0f0f0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
 
 header {
@@ -43,26 +46,26 @@ select, input, button {
 
 main {
     display: flex;
-    padding: 1em;
+    flex: 1;
+    overflow: hidden;
 }
 
 #graph {
-    width: 70%;
-    height: 600px;
+    flex: 7;
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
 }
 
 #infoPanel {
-    width: 30%;
+    flex: 3;
     padding: 1em;
     background-color: #ffffff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-left: 1em;
     overflow-y: auto;
-    max-height: 600px;
 }
 
 #infoPanel h2 {

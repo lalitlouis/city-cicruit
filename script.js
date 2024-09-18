@@ -365,7 +365,7 @@ const mockData = {
     ]
   };
 
-  function calculateNodeSize(place) {
+function calculateNodeSize(place) {
     // This is a simple calculation, you can make it more complex
     const popularityFactor = place.reviews / 100;
     const ratingFactor = place.rating;
@@ -400,7 +400,7 @@ function createGraph(data) {
         .enter()
         .append("circle")
         .attr("r", d => calculateNodeSize(d))
-        .style("fill", d => d.type === "restaurants" ? "#ff9999" : "#99ccff");
+        .style("fill", d => getNodeColor(calculateNodeScore(d)));
 
     // Add tooltips
     const tooltip = d3.select("body").append("div")
@@ -428,6 +428,19 @@ function createGraph(data) {
             .attr("cx", d => d.x)
             .attr("cy", d => d.y);
     });
+}
+
+function calculateNodeScore(place) {
+    return (place.rating * place.reviews) / 100;
+}
+
+function getNodeColor(score) {
+    // This function will return a color based on the score
+    // Higher scores will be more vibrant
+    const hue = Math.min(score * 10, 120); // Max hue of 120 (green)
+    const saturation = Math.min(score * 5, 100);
+    const lightness = 50;
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 function showInfo(place) {
