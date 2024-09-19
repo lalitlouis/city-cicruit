@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let svg, g, zoom, simulation;
     let currentData = [];
     let zipLat, zipLng, currentZipCode;
+    let currentSearchType = 'restaurant';
 
     // Include the D3 color scale
     const colorScale = d3.scaleOrdinal(d3.schemeSet2);
@@ -117,35 +118,59 @@ document.addEventListener('DOMContentLoaded', function() {
                         .attr("text-anchor", "middle")
                         .attr("dominant-baseline", "central")
                         .each(function(d) {
-                            const words = d.name.split(/\s+/);
                             const el = d3.select(this);
                             const radius = calculateNodeSize(d, maxScore);
-                            el.text('');
+                            let fontSize = 12;
+                            el.text(d.name)
+                                .attr('font-size', fontSize);
                             
-                            words.forEach((word, i) => {
-                                const tspan = el.append('tspan')
-                                    .text(word)
-                                    .attr('x', 0)
-                                    .attr('dy', i ? '1.2em' : 0);
-                            });
+                            while (this.getComputedTextLength() > radius * 1.8 && fontSize > 6) {
+                                fontSize--;
+                                el.attr('font-size', fontSize);
+                            }
                             
-                            const bbox = this.getBBox();
-                            const textHeight = bbox.height;
-                            el.attr('transform', `translate(0,${-textHeight/2})`);
+                            if (this.getComputedTextLength() > radius * 1.8) {
+                                const words = d.name.split(/\s+/);
+                                el.text('');
+                                words.forEach((word, i) => {
+                                    el.append('tspan')
+                                        .text(word)
+                                        .attr('x', 0)
+                                        .attr('dy', i ? '1.2em' : 0);
+                                });
+                            }
                         });
 
+                    group.append("circle")
+                        .attr("class", "node-close-bg")
+                        .attr("r", 8)
+                        .attr("cx", d => calculateNodeSize(d, maxScore) - 5)
+                        .attr("cy", d => -calculateNodeSize(d, maxScore) + 15)
+                        .attr("fill", "red")
+                        .style("opacity", 0)
+                        .style("cursor", "pointer");
+
                     group.append("text")
-                        .attr("class", "node-close text-red-500 cursor-pointer")
+                        .attr("class", "node-close text-white cursor-pointer")
                         .text('×')
                         .attr("font-size", "12px")
-                        .attr("text-anchor", "end")
-                        .attr("dx", d => calculateNodeSize(d, maxScore) - 5)
-                        .attr("dy", d => -calculateNodeSize(d, maxScore) + 15)
+                        .attr("text-anchor", "middle")
+                        .attr("dominant-baseline", "central")
+                        .attr("x", d => calculateNodeSize(d, maxScore) - 5)
+                        .attr("y", d => -calculateNodeSize(d, maxScore) + 15)
+                        .style("opacity", 0)
                         .on('click', (event, d) => {
                             event.stopPropagation();
                             currentData = currentData.filter(node => node !== d);
                             updateGraph(d3.select('#scoreOption').property('value'));
                         });
+
+                    group.on("mouseover", function() {
+                        d3.select(this).selectAll(".node-close, .node-close-bg").style("opacity", 1);
+                    })
+                    .on("mouseout", function() {
+                        d3.select(this).selectAll(".node-close, .node-close-bg").style("opacity", 0);
+                    });
 
                     return group;
                 },
@@ -153,18 +178,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 exit => exit.remove()
             );
 
+        const topThreeNodes = nodeGroup.filter((d, i) => i < 3);
+        topThreeNodes.append("circle")
+            .attr("r", d => calculateNodeSize(d, maxScore) + 5)
+            .attr("fill", "none")
+            .attr("stroke", d => colorScale(d.name))
+            .attr("stroke-width", 2)
+            .attr("opacity", 0.5)
+            .call(pulse);
+
         simulation.on("tick", () => {
             nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
         });
     }
 
     function calculateNodeSize(place, maxScore) {
-        const minSize = 15;
-        const maxSize = 50;
-        const sizeScale = d3.scaleLinear()
+        const minSize = 30;
+        const maxSize = 100;
+        const sizeScale = d3.scaleSqrt()
             .domain([0, maxScore])
             .range([minSize, maxSize]);
         return sizeScale(place.score);
+    }
+
+    function pulse() {
+        const circle = d3.select(this);
+        (function repeat() {
+            circle.transition()
+                .duration(1000)
+                .attr("r", d => calculateNodeSize(d, maxScore) + 15)
+                .transition()
+                .duration(1000)
+                .attr("r", d => calculateNodeSize(d, maxScore) + 5)
+                .on("end", repeat);
+        })();
     }
 
     const drag = d3.drag()
@@ -220,16 +267,56 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function addToShortlist(place) {
         const shortlistContainer = d3.select('#shortlistContainer');
+        
+        if (shortlistContainer.selectAll('.shortlist-item').size() >= 5) {
+            shortlistContainer.select('.shortlist-item').remove();
+            alert("You can only have 5 items in the shortlist. The oldest item has been removed.");
+        }
 
         const item = shortlistContainer.append('div')
-            .attr('class', 'flex justify-between items-center bg-white p-2 mb-2 rounded cursor-pointer hover:bg-gray-100');
+            .attr('class', 'shortlist-item inline-block m-2');
 
-        item.append('span')
-            .text(place.name);
+        const svg = item.append('svg')
+            .attr('width', 60)
+            .attr('height', 60);
 
-        item.append('button')
-            .attr('class', 'text-gray-500 hover:text-orange-500 text-lg focus:outline-none')
+        svg.append('circle')
+            .attr('cx', 30)
+            .attr('cy', 30)
+            .attr('r', 28)
+            .attr('fill', colorScale(place.name));
+
+        svg.append('text')
+            .attr('x', 30)
+            .attr('y', 30)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'central')
+            .attr('fill', 'white')
+            .text(place.name.substring(0, 2))
+            .style('font-size', '14px');
+
+        svg.append('circle')
+            .attr('cx', 50)
+            .attr('cy', 10)
+            .attr('r', 8)
+            .attr('fill', 'red')
+            .attr('class', 'remove-button')
+            .style('cursor', 'pointer')
+            .on('click', () => {
+                item.remove();
+                currentData.push(place);
+                updateGraph(d3.select('#scoreOption').property('value'));
+            });
+
+        svg.append('text')
+            .attr('x', 50)
+            .attr('y', 10)
+            .attr('text-anchor', 'middle')
+            .attr('dominant-baseline', 'central')
+            .attr('fill', 'white')
             .text('×')
+            .style('font-size', '12px')
+            .style('cursor', 'pointer')
             .on('click', () => {
                 item.remove();
                 currentData.push(place);
@@ -262,16 +349,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const infoPanel = d3.select("#infoPanel").html("");
 
             const tabContainer = infoPanel.append("div").attr("class", "flex mb-4");
-            tabContainer.append("button").attr("class", "tab active px-4 py-2 bg-orange-500 text-white rounded-l").text("Info").on("click", () => showTab("info"));
-            tabContainer.append("button").attr("class", "tab px-4 py-2 bg-gray-300 text-gray-700 rounded-r").text("Menu").on("click", () => showTab("menu"));
+            tabContainer.append("button").attr("class", "tab active px-4 py-2 bg-orange-500 text-white rounded-l").text("Info").on("click", () => showTab("Info"));
+            tabContainer.append("button").attr("class", "tab px-4 py-2 bg-gray-300 text-gray-700 rounded-r").text("Menu").on("click", () => showTab("Menu"));
 
-            const infoContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "infoTab");
+            const infoContent = infoPanel.append("div").attr("class", "tab-content").attr("id", "InfoTab");
             populateInfoTab(infoContent, placeDetails || place);
 
-            const menuContent = infoPanel.append("div").attr("class", "tab-content hidden").attr("id", "menuTab");
+            const menuContent = infoPanel.append("div").attr("class", "tab-content hidden").attr("id", "MenuTab");
             populateMenuTab(menuContent);
 
-            showTab("info");
+            showTab("Info");
         } catch (error) {
             console.error('Error fetching place details:', error);
             d3.select("#infoPanel").html(`<p class="text-red-500">Error fetching place details: ${error.message}</p>`);
@@ -357,6 +444,11 @@ document.addEventListener('DOMContentLoaded', function() {
         d3.select(`#${tabName}Tab`).classed("hidden", false);
     }
 
+    function setSearchType(type) {
+        currentSearchType = type;
+        document.getElementById('searchButton').click();
+    }
+
     document.getElementById('searchButton').addEventListener('click', async () => {
         const locationInput = document.getElementById('locationInput');
         const zipCode = locationInput.value;
@@ -377,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const { lat, lng } = geocodeData.results[0].geometry.location;
 
-            const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}`);
+            const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}&type=${currentSearchType}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
