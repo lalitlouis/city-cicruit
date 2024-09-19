@@ -1,35 +1,30 @@
 // Global variables
-let svg, g, zoom;
+let svg, g, zoom, simulation;
 let currentData = [];
 let zipLat, zipLng, currentZipCode;
 
 // Include the D3 color scale
 const colorScale = d3.scaleOrdinal(d3.schemeSet2);
 
-
 // Select the tooltip div
 const tooltip = d3.select("#tooltip");
-
-
-
 
 // Add this function if it's not already present
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the earth in km
     const dLat = deg2rad(lat2 - lat1);
     const dLon = deg2rad(lon2 - lon1);
-    const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2)
-    ; 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c; // Distance in km
     return d * 1000; // Convert to meters
 }
 
 function deg2rad(deg) {
-    return deg * (Math.PI/180);
+    return deg * (Math.PI / 180);
 }
 
 // Function to calculate score based on selected option
@@ -68,9 +63,6 @@ function updateGraph(option) {
         .attr("width", width)
         .attr("height", height);
 
-    // Call tooltip
-    svg.call(tip);
-
     g = svg.append("g");
 
     zoom = d3.zoom()
@@ -87,11 +79,11 @@ function updateGraph(option) {
 
     const maxScore = Math.max(...currentData.map(d => d.score));
 
-    const simulation = d3.forceSimulation(currentData)
+    simulation = d3.forceSimulation(currentData)
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
-    // When creating your nodes
+    // Create node groups to hold circle, label, and close button
     const nodeGroup = g.selectAll(".node-group")
         .data(currentData, d => d.place_id)
         .join(
@@ -125,20 +117,19 @@ function updateGraph(option) {
                         return Math.min(estimatedFontSize, 12) + "px"; // Max font size of 12px
                     });
 
-                    group.append("text")
+                group.append("text")
                     .attr("class", "node-close")
                     .text('×')
                     .attr("font-size", "12px")
                     .attr("fill", "red")
                     .attr("text-anchor", "end")
                     .attr("dx", d => calculateNodeSize(d, maxScore) - 5)
-                    .attr("dy", d => -calculateNodeSize(d, maxScore) + 15) // Corrected line
+                    .attr("dy", d => -calculateNodeSize(d, maxScore) + 15)
                     .on('click', (event, d) => {
                         event.stopPropagation();
                         currentData = currentData.filter(node => node !== d);
                         updateGraph(d3.select('#scoreOption').property('value'));
                     });
-                
 
                 return group;
             },
@@ -245,7 +236,7 @@ function addToShortlist(place) {
 }
 
 // Event listener for the dropdown
-d3.select('#scoreOption').on('change', function() {
+d3.select('#scoreOption').on('change', function () {
     updateGraph(this.value);
 });
 
@@ -290,16 +281,16 @@ async function showInfo(place) {
 // Function to populate the Info tab
 function populateInfoTab(infoContent, placeDetails) {
     infoContent.append("h2").text(placeDetails.name);
-    
+
     if (placeDetails.rating) {
         const ratingContainer = infoContent.append("div").attr("class", "rating-container info-item");
         ratingContainer.append("i").attr("class", "fas fa-star").style("color", "#FFC107");
-        
+
         const starRating = ratingContainer.append("span").attr("class", "star-rating");
         for (let i = 0; i < 5; i++) {
             starRating.append("span").text(i < Math.floor(placeDetails.rating) ? "★" : "☆");
         }
-        
+
         ratingContainer.append("span").attr("class", "review-count").text(` (${placeDetails.user_ratings_total || 0} reviews)`);
     }
 
@@ -361,7 +352,7 @@ function populateMenuTab(menuContent) {
 function showTab(tabName) {
     d3.selectAll(".tab").classed("active", false);
     d3.selectAll(".tab-content").classed("active", false);
-    d3.selectAll(".tab").filter(function() {
+    d3.selectAll(".tab").filter(function () {
         return d3.select(this).text().toLowerCase() === tabName.toLowerCase();
     }).classed("active", true);
     d3.select(`#${tabName}Tab`).classed("active", true);
@@ -410,3 +401,6 @@ document.getElementById('searchButton').addEventListener('click', async () => {
         d3.select("#graph").html(`<p>Error fetching data: ${error.message}</p>`);
     }
 });
+
+// Remove the initial graph creation
+// document.getElementById('searchButton').click();
