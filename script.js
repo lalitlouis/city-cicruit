@@ -60,31 +60,31 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("No data to display");
             return;
         }
-
+    
         d3.select("#graph").select("svg").remove();
-
+    
         const width = document.getElementById('graph').clientWidth;
         const height = document.getElementById('graph').clientHeight;
-
+    
         svg = d3.select("#graph")
             .append("svg")
             .attr("width", width)
             .attr("height", height);
-
+    
         g = svg.append("g");
-
+    
         zoom = d3.zoom()
             .scaleExtent([0.5, 5])
             .on("zoom", (event) => {
                 g.attr("transform", event.transform);
             });
-
+    
         svg.call(zoom);
-
+    
         currentData.forEach(d => {
             d.score = calculateScore(d, option);
         });
-
+    
         const maxScore = Math.max(...currentData.map(d => d.score));
 
         simulation = d3.forceSimulation(currentData)
@@ -185,8 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .attr("stroke", d => colorScale(d.name))
             .attr("stroke-width", 2)
             .attr("opacity", 0.5)
-            .call(pulse);
-
+            .call(pulse, maxScore);  // Pass maxScore to pulse function
+    
         simulation.on("tick", () => {
             nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
         });
@@ -201,17 +201,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return sizeScale(place.score);
     }
 
-    function pulse() {
-        const circle = d3.select(this);
-        (function repeat() {
-            circle.transition()
-                .duration(1000)
-                .attr("r", d => calculateNodeSize(d, maxScore) + 15)
-                .transition()
-                .duration(1000)
-                .attr("r", d => calculateNodeSize(d, maxScore) + 5)
-                .on("end", repeat);
-        })();
+    function pulse(selection, maxScore) {
+        selection.each(function() {
+            const circle = d3.select(this);
+            const initialRadius = parseFloat(circle.attr("r"));
+            
+            (function repeat() {
+                circle.transition()
+                    .duration(1000)
+                    .attr("r", d => calculateNodeSize(d, maxScore) + 15)
+                    .transition()
+                    .duration(1000)
+                    .attr("r", initialRadius)
+                    .on("end", repeat);
+            })();
+        });
     }
 
     const drag = d3.drag()
@@ -444,10 +448,10 @@ document.addEventListener('DOMContentLoaded', function() {
         d3.select(`#${tabName}Tab`).classed("hidden", false);
     }
 
-    function setSearchType(type) {
-        currentSearchType = type;
+    document.getElementById('interestType').addEventListener('change', function() {
+        currentSearchType = this.value;
         document.getElementById('searchButton').click();
-    }
+    });
 
     document.getElementById('searchButton').addEventListener('click', async () => {
         const locationInput = document.getElementById('locationInput');
