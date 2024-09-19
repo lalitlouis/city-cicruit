@@ -5,23 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>City Circuit</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <header>
-        <h1>City<span style="color: #3498db;">Circuit</span></h1>
+        <h1><i class="fas fa-map-marked-alt"></i> City<span>Circuit</span></h1>
     </header>
     <nav>
-        <input type="text" id="locationInput" placeholder="Enter ZIP code">
-        <button id="searchButton">Search</button>
+        <div class="search-container">
+            <input type="text" id="locationInput" placeholder="Enter ZIP code">
+            <button id="searchButton"><i class="fas fa-search"></i></button>
+        </div>
+        <select id="scoreOption">
+            <option value="rating">Rating</option>
+            <option value="reviews">Number of Reviews</option>
+            <option value="distance">Distance</option>
+            <option value="price">Price Level</option>
+        </select>
     </nav>
-    <select id="scoreOption">
-        <option value="rating">Rating</option>
-        <option value="reviews">Number of Reviews</option>
-        <option value="distance">Distance</option>
-        <option value="price">Price Level</option>
-    </select>
     <main>
         <div id="graph"></div>
         <div id="infoPanel"></div>

@@ -3,6 +3,9 @@ let svg, g, zoom;
 let currentData = [];
 let zipLat, zipLng, currentZipCode;
 
+// Replace the 'getRandomColor' function with a predefined color scale
+const colorScale = d3.scaleOrdinal(d3.schemeSet2);
+
 
 // Add this function if it's not already present
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -94,11 +97,12 @@ function updateGraph(option) {
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
+    // Update node colors using the color scale
     const node = g.selectAll("circle")
         .data(currentData)
         .enter().append("circle")
         .attr("r", d => calculateNodeSize(d, maxScore))
-        .attr("fill", d => d.color)
+        .attr("fill", d => colorScale(d.name))
         .on("click", (event, d) => showInfo(d));
 
     const label = g.selectAll("text")
