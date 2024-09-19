@@ -43,7 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function createGraph(data, zipCode, lat, lng) {
+        const shortlist = d3.select("#shortlist").node();
         d3.select("#graph").html("");
+        d3.select("#graph").node().appendChild(shortlist);
         d3.select("#placeholderMessage").style("display", "none");
         currentData = data;
         zipLat = lat;
@@ -114,11 +116,22 @@ document.addEventListener('DOMContentLoaded', function() {
                         .attr("class", "node-label text-white pointer-events-none")
                         .attr("text-anchor", "middle")
                         .attr("dominant-baseline", "central")
-                        .text(d => d.name)
-                        .attr("font-size", d => {
+                        .each(function(d) {
+                            const words = d.name.split(/\s+/);
+                            const el = d3.select(this);
                             const radius = calculateNodeSize(d, maxScore);
-                            const estimatedFontSize = (2 * radius) / d.name.length;
-                            return Math.min(estimatedFontSize, 12) + "px";
+                            el.text('');
+                            
+                            words.forEach((word, i) => {
+                                const tspan = el.append('tspan')
+                                    .text(word)
+                                    .attr('x', 0)
+                                    .attr('dy', i ? '1.2em' : 0);
+                            });
+                            
+                            const bbox = this.getBBox();
+                            const textHeight = bbox.height;
+                            el.attr('transform', `translate(0,${-textHeight/2})`);
                         });
 
                     group.append("text")
@@ -339,7 +352,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function showTab(tabName) {
         d3.selectAll(".tab").classed("active", false).classed("bg-orange-500 text-white", false).classed("bg-gray-300 text-gray-700", true);
         d3.selectAll(".tab-content").classed("hidden", true);
-        d3.select(`.tab:contains("${tabName}")`).classed("active", true).classed("bg-orange-500 text-white", true).classed("bg-gray-300 text-gray-700", false);
+        d3.select(`.tab`).filter(function() { return d3.select(this).text() === tabName; })
+            .classed("active", true).classed("bg-orange-500 text-white", true).classed("bg-gray-300 text-gray-700", false);
         d3.select(`#${tabName}Tab`).classed("hidden", false);
     }
 
