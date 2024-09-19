@@ -89,7 +89,7 @@ function updateGraph(option) {
         .join(
             enter => {
                 const group = enter.append("g")
-                    .attr("class", "node-group")
+                    .attr("class", "node-group cursor-grab")
                     .call(drag);
 
                 group.append("circle")
@@ -107,7 +107,8 @@ function updateGraph(option) {
                     });
 
                 group.append("text")
-                    .attr("class", "node-label")
+                    // Add Tailwind CSS classes for styling
+                    .attr("class", "node-label text-white pointer-events-none")
                     .attr("text-anchor", "middle")
                     .attr("dominant-baseline", "central")
                     .text(d => d.name)
@@ -118,10 +119,10 @@ function updateGraph(option) {
                     });
 
                 group.append("text")
-                    .attr("class", "node-close")
+                    // Add Tailwind CSS classes for styling
+                    .attr("class", "node-close text-red-500 cursor-pointer")
                     .text('×')
                     .attr("font-size", "12px")
-                    .attr("fill", "red")
                     .attr("text-anchor", "end")
                     .attr("dx", d => calculateNodeSize(d, maxScore) - 5)
                     .attr("dy", d => -calculateNodeSize(d, maxScore) + 15)
@@ -152,7 +153,7 @@ function calculateNodeSize(place, maxScore) {
     return sizeScale(place.score);
 }
 
-// Drag behavior
+// Drag behavior (same as before)
 const drag = d3.drag()
     .on('start', dragstarted)
     .on('drag', dragged)
@@ -162,6 +163,7 @@ function dragstarted(event, d) {
     if (!event.active) simulation.alphaTarget(0.3).restart();
     d.fx = d.x;
     d.fy = d.y;
+    d3.select(this).classed('cursor-grabbing', true);
 }
 
 function dragged(event, d) {
@@ -176,14 +178,20 @@ function dragged(event, d) {
         event.sourceEvent.clientY >= shortlistBounds.top &&
         event.sourceEvent.clientY <= shortlistBounds.bottom
     ) {
-        d3.select('#shortlist').style('background', 'rgba(255, 235, 235, 0.9)');
+        d3.select('#shortlist').classed('bg-red-100', true);
     } else {
-        d3.select('#shortlist').style('background', 'rgba(255, 255, 255, 0.9)');
+        d3.select('#shortlist').classed('bg-red-100', false);
     }
 }
 
 function dragended(event, d) {
     if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+    d3.select(this).classed('cursor-grabbing', false);
+
+    // Reset shortlist background
+    d3.select('#shortlist').classed('bg-red-100', false);
 
     // Get shortlist area boundaries
     const shortlistBounds = document.getElementById('shortlist').getBoundingClientRect();
@@ -201,12 +209,6 @@ function dragended(event, d) {
         currentData = currentData.filter(node => node !== d);
         updateGraph(d3.select('#scoreOption').property('value'));
     }
-
-    d.fx = null;
-    d.fy = null;
-
-    // Reset shortlist background
-    d3.select('#shortlist').style('background', 'rgba(255, 255, 255, 0.9)');
 }
 
 // Function to add a place to the shortlist
@@ -214,13 +216,13 @@ function addToShortlist(place) {
     const shortlistContainer = d3.select('#shortlistContainer');
 
     const item = shortlistContainer.append('div')
-        .attr('class', 'shortlist-item');
+        .attr('class', 'shortlist-item flex justify-between items-center bg-white p-2 mb-2 rounded cursor-pointer hover:bg-gray-100');
 
     item.append('span')
         .text(place.name);
 
     item.append('button')
-        .attr('class', 'remove-button')
+        .attr('class', 'remove-button text-gray-500 hover:text-orange-500 text-lg focus:outline-none')
         .text('×')
         .on('click', () => {
             // Remove from shortlist
@@ -239,6 +241,7 @@ function addToShortlist(place) {
 d3.select('#scoreOption').on('change', function () {
     updateGraph(this.value);
 });
+
 
 // Function to display information about a place
 async function showInfo(place) {
@@ -361,10 +364,6 @@ function showTab(tabName) {
 // Search button event listener
 document.getElementById('searchButton').addEventListener('click', async () => {
     const locationInput = document.getElementById('locationInput');
-    if (!locationInput) {
-        console.error('Location input element not found');
-        return;
-    }
     const zipCode = locationInput.value;
 
     if (!zipCode) {
@@ -401,6 +400,3 @@ document.getElementById('searchButton').addEventListener('click', async () => {
         d3.select("#graph").html(`<p>Error fetching data: ${error.message}</p>`);
     }
 });
-
-// Remove the initial graph creation
-// document.getElementById('searchButton').click();
