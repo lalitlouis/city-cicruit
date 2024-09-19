@@ -1,9 +1,16 @@
+// Global variables
 let svg, g, zoom;
-
 let currentData = [];
 let zipLat, zipLng, currentZipCode;
 
+// Include the D3 color scale
 const colorScale = d3.scaleOrdinal(d3.schemeSet2);
+
+// Initialize tooltip using d3-tip
+const tip = d3.tip()
+    .attr('class', 'd3-tip')
+    .offset([-10, 0])
+    .html(d => `<strong>${d.name}</strong><br/>Rating: ${d.rating || 'N/A'}`);
 
 
 
@@ -26,59 +33,48 @@ function deg2rad(deg) {
     return deg * (Math.PI/180);
 }
 
+// Function to calculate score based on selected option
 function calculateScore(place, option) {
     switch (option) {
         case 'rating':
-            return place.rating;
+            return place.rating || 0;
         case 'reviews':
             return Math.log(place.user_ratings_total + 1);
         case 'distance':
             return 1 / (place.distance / 1000 + 1); // Inverse of distance in km
         case 'price':
-            return place.price_level ? place.price_level : 2; // Default to mid-range if no price level
+            return place.price_level ? 4 - place.price_level : 2; // Inverse for price (lower price_level is higher score)
         default:
             return 1;
     }
 }
 
-function getNodeColor(score, option) {
-    let hue;
-    switch (option) {
-        case 'rating':
-        case 'reviews':
-            hue = 120 * (score / 5); // Green (120) for high scores, red (0) for low
-            break;
-        case 'distance':
-            hue = 120 * score; // Green for close, red for far
-            break;
-        case 'price':
-            hue = 120 * (1 - (score - 1) / 3); // Green for cheap, red for expensive
-            break;
-        default:
-            hue = 200;
-    }
-    return `hsl(${hue}, 100%, 50%)`;
-}
-
+// Function to create the graph
 function createGraph(data) {
+    // Hide the placeholder message
+    d3.select("#placeholderMessage").style("display", "none");
     currentData = data;
     updateGraph(d3.select('#scoreOption').property('value'));
 }
 
+// Function to update the graph based on selected option
 function updateGraph(option) {
-    d3.select("#graph").html("");
+    d3.select("#graph").select("svg").remove();
 
     const width = document.getElementById('graph').clientWidth;
     const height = document.getElementById('graph').clientHeight;
 
-    const svg = d3.select("#graph")
+    svg = d3.select("#graph")
         .append("svg")
         .attr("width", width)
         .attr("height", height);
 
-    const g = svg.append("g");
+    // Call tooltip
+    svg.call(tip);
 
-    const zoom = d3.zoom()
+    g = svg.append("g");
+
+    zoom = d3.zoom()
         .scaleExtent([0.5, 5])
         .on("zoom", (event) => {
             g.attr("transform", event.transform);
@@ -88,7 +84,6 @@ function updateGraph(option) {
 
     currentData.forEach(d => {
         d.score = calculateScore(d, option);
-        d.color = getRandomColor();
     });
 
     const maxScore = Math.max(...currentData.map(d => d.score));
@@ -97,57 +92,157 @@ function updateGraph(option) {
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
-    // Update node colors using the color scale
-    const node = g.selectAll("circle")
-        .data(currentData)
-        .enter().append("circle")
-        .attr("r", d => calculateNodeSize(d, maxScore))
-        .attr("fill", d => colorScale(d.name))
-        .on("click", (event, d) => showInfo(d));
+    // Create node groups to hold circle, label, and close button
+    const nodeGroup = g.selectAll(".node-group")
+        .data(currentData, d => d.place_id)
+        .join(
+            enter => {
+                const group = enter.append("g")
+                    .attr("class", "node-group")
+                    .call(drag);
 
-    const label = g.selectAll("text")
-        .data(currentData)
-        .enter().append("text")
-        .attr("text-anchor", "middle")
-        .attr("dominant-baseline", "central")
-        .text(d => d.name)
-        .attr("font-size", "10px")
-        .attr("fill", "black");
+                group.append("circle")
+                    .attr("r", d => calculateNodeSize(d, maxScore))
+                    .attr("fill", d => colorScale(d.name))
+                    .on("click", (event, d) => showInfo(d))
+                    .on('mouseover', tip.show)
+                    .on('mouseout', tip.hide);
 
-    node.append("title")
-        .text(d => `${d.name}\nRating: ${d.rating}\nReviews: ${d.user_ratings_total}`);
+                group.append("text")
+                    .attr("class", "node-label")
+                    .attr("text-anchor", "middle")
+                    .attr("dominant-baseline", "central")
+                    .text(d => d.name)
+                    .attr("font-size", d => {
+                        const radius = calculateNodeSize(d, maxScore);
+                        const estimatedFontSize = (2 * radius) / d.name.length;
+                        return Math.min(estimatedFontSize, 12) + "px"; // Max font size of 12px
+                    });
+
+                group.append("text")
+                    .attr("class", "node-close")
+                    .text('×')
+                    .attr("font-size", "12px")
+                    .attr("fill", "red")
+                    .attr("text-anchor", "end")
+                    .attr("dx", d => calculateNodeSize(d, maxScore) - 5)
+                    .attr("dy", -d => calculateNodeSize(d, maxScore) + 15)
+                    .on('click', (event, d) => {
+                        event.stopPropagation();
+                        currentData = currentData.filter(node => node !== d);
+                        updateGraph(d3.select('#scoreOption').property('value'));
+                    });
+
+                return group;
+            },
+            update => update,
+            exit => exit.remove()
+        );
 
     simulation.on("tick", () => {
-        node
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
-
-        label
-            .attr("x", d => d.x)
-            .attr("y", d => d.y);
+        nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
     });
 }
 
+// Function to calculate node size
 function calculateNodeSize(place, maxScore) {
-    return 5 + (place.score / maxScore) * 30;
+    const minSize = 15;
+    const maxSize = 50;
+    const sizeScale = d3.scaleLinear()
+        .domain([0, maxScore])
+        .range([minSize, maxSize]);
+    return sizeScale(place.score);
 }
 
-function getRandomColor() {
-    const colors = [
-        "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", 
-        "#98D8C8", "#F06292", "#AED581", "#7986CB", 
-        "#FFD54F", "#4DB6AC", "#9575CD", "#4FC3F7", 
-        "#81C784", "#DCE775", "#FFB74D", "#A1887F"
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
+// Drag behavior
+const drag = d3.drag()
+    .on('start', dragstarted)
+    .on('drag', dragged)
+    .on('end', dragended);
+
+function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
 }
 
-// Add event listener for dropdown
+function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+
+    // Highlight shortlist area when node is over it
+    const shortlistBounds = document.getElementById('shortlist').getBoundingClientRect();
+    if (
+        event.sourceEvent.clientX >= shortlistBounds.left &&
+        event.sourceEvent.clientX <= shortlistBounds.right &&
+        event.sourceEvent.clientY >= shortlistBounds.top &&
+        event.sourceEvent.clientY <= shortlistBounds.bottom
+    ) {
+        d3.select('#shortlist').style('background', 'rgba(255, 235, 235, 0.9)');
+    } else {
+        d3.select('#shortlist').style('background', 'rgba(255, 255, 255, 0.9)');
+    }
+}
+
+function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+
+    // Get shortlist area boundaries
+    const shortlistBounds = document.getElementById('shortlist').getBoundingClientRect();
+
+    // Check if dropped in shortlist area
+    if (
+        event.sourceEvent.clientX >= shortlistBounds.left &&
+        event.sourceEvent.clientX <= shortlistBounds.right &&
+        event.sourceEvent.clientY >= shortlistBounds.top &&
+        event.sourceEvent.clientY <= shortlistBounds.bottom
+    ) {
+        // Add to shortlist
+        addToShortlist(d);
+        // Remove from current data and update graph
+        currentData = currentData.filter(node => node !== d);
+        updateGraph(d3.select('#scoreOption').property('value'));
+    }
+
+    d.fx = null;
+    d.fy = null;
+
+    // Reset shortlist background
+    d3.select('#shortlist').style('background', 'rgba(255, 255, 255, 0.9)');
+}
+
+// Function to add a place to the shortlist
+function addToShortlist(place) {
+    const shortlistContainer = d3.select('#shortlistContainer');
+
+    const item = shortlistContainer.append('div')
+        .attr('class', 'shortlist-item');
+
+    item.append('span')
+        .text(place.name);
+
+    item.append('button')
+        .attr('class', 'remove-button')
+        .text('×')
+        .on('click', () => {
+            // Remove from shortlist
+            item.remove();
+            // Add back to graph data
+            currentData.push(place);
+            updateGraph(d3.select('#scoreOption').property('value'));
+        });
+
+    item.on('click', () => {
+        showInfo(place);
+    });
+}
+
+// Event listener for the dropdown
 d3.select('#scoreOption').on('change', function() {
     updateGraph(this.value);
 });
 
-
+// Function to display information about a place
 async function showInfo(place) {
     if (place.id === "center") {
         d3.select("#infoPanel").html(`<h2>ZIP Code: ${place.name}</h2>`);
@@ -185,6 +280,7 @@ async function showInfo(place) {
     }
 }
 
+// Function to populate the Info tab
 function populateInfoTab(infoContent, placeDetails) {
     infoContent.append("h2").text(placeDetails.name);
     
@@ -235,6 +331,7 @@ function populateInfoTab(infoContent, placeDetails) {
     }
 }
 
+// Function to populate the Menu tab
 function populateMenuTab(menuContent) {
     menuContent.append("h3").text("Menu");
     menuContent.append("p").text("Menu information is not available through the Google Places API. You can visit the restaurant's website or use a food delivery service to view their menu.");
@@ -253,22 +350,29 @@ function populateMenuTab(menuContent) {
     select.on("change", () => alert("This is a mock sort functionality."));
 }
 
+// Function to handle tab switching
 function showTab(tabName) {
     d3.selectAll(".tab").classed("active", false);
-    d3.selectAll(".tab-content").style("display", "none");
-    d3.select(`.tab`).filter(function() {
+    d3.selectAll(".tab-content").classed("active", false);
+    d3.selectAll(".tab").filter(function() {
         return d3.select(this).text().toLowerCase() === tabName.toLowerCase();
     }).classed("active", true);
-    d3.select(`#${tabName}Tab`).style("display", "block");
+    d3.select(`#${tabName}Tab`).classed("active", true);
 }
 
+// Search button event listener
 document.getElementById('searchButton').addEventListener('click', async () => {
     const locationInput = document.getElementById('locationInput');
     if (!locationInput) {
         console.error('Location input element not found');
         return;
     }
-    const zipCode = locationInput.value || '94102';  // Default to San Francisco
+    const zipCode = locationInput.value;
+
+    if (!zipCode) {
+        alert('Please enter a ZIP code.');
+        return;
+    }
 
     try {
         // First, get the coordinates for the ZIP code
@@ -299,6 +403,3 @@ document.getElementById('searchButton').addEventListener('click', async () => {
         d3.select("#graph").html(`<p>Error fetching data: ${error.message}</p>`);
     }
 });
-
-// Initial graph creation
-document.getElementById('searchButton').click();

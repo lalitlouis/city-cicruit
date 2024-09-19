@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- ... existing head content ... -->
+    <!-- Metadata and styles -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>City Circuit</title>
+    <!-- Stylesheet -->
     <link rel="stylesheet" href="styles.css">
-    <!-- Add Google Fonts for better typography -->
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,600&display=swap" rel="stylesheet">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-    <!-- Include D3.js -->
+    <!-- D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- Include d3-scale-chromatic for color schemes -->
+    <!-- D3-scale-chromatic for color schemes -->
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <!-- D3-tip for tooltips -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-tip/0.9.1/d3-tip.min.js"></script>
 </head>
 <body>
     <header>
@@ -30,7 +35,13 @@
         </select>
     </nav>
     <main>
-        <div id="graph"></div>
+        <div id="graph">
+            <p id="placeholderMessage">Please enter a ZIP code and click Search to load the graph.</p>
+            <div id="shortlist">
+                <h3>Shortlist</h3>
+                <div id="shortlistContainer"></div>
+            </div>
+        </div>
         <div id="infoPanel"></div>
     </main>
     <!-- Your JavaScript file -->
