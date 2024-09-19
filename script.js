@@ -6,11 +6,12 @@ let zipLat, zipLng, currentZipCode;
 // Include the D3 color scale
 const colorScale = d3.scaleOrdinal(d3.schemeSet2);
 
-// Initialize tooltip using d3-tip
-const tip = d3.tip()
+// Initialize tooltip using the updated d3-tip
+const tip = d3Tip() // Note the change from 'd3.tip()' to 'd3Tip()'
     .attr('class', 'd3-tip')
     .offset([-10, 0])
     .html(d => `<strong>${d.name}</strong><br/>Rating: ${d.rating || 'N/A'}`);
+
 
 
 
@@ -101,12 +102,13 @@ function updateGraph(option) {
                     .attr("class", "node-group")
                     .call(drag);
 
+                // When creating your nodes
                 group.append("circle")
-                    .attr("r", d => calculateNodeSize(d, maxScore))
-                    .attr("fill", d => colorScale(d.name))
-                    .on("click", (event, d) => showInfo(d))
-                    .on('mouseover', tip.show)
-                    .on('mouseout', tip.hide);
+                .attr("r", d => calculateNodeSize(d, maxScore))
+                .attr("fill", d => colorScale(d.name))
+                .on('click', (event, d) => showInfo(d))
+                .on('mouseover', (event, d) => tip.show(d, event.target)) // Updated handler
+                .on('mouseout', tip.hide);
 
                 group.append("text")
                     .attr("class", "node-label")
