@@ -448,20 +448,16 @@ document.addEventListener('DOMContentLoaded', function() {
         d3.select(`#${tabName}Tab`).classed("hidden", false);
     }
 
-    document.getElementById('interestType').addEventListener('change', function() {
-        currentSearchType = this.value;
-        document.getElementById('searchButton').click();
-    });
-
     document.getElementById('searchButton').addEventListener('click', async () => {
         const locationInput = document.getElementById('locationInput');
         const zipCode = locationInput.value;
-
+        const interestType = document.getElementById('interestType').value;
+    
         if (!zipCode) {
             alert('Please enter a ZIP code.');
             return;
         }
-
+    
         try {
             const geocodeResponse = await fetch(`/.netlify/functions/googlePlaces?action=geocode&zipCode=${zipCode}`);
             if (!geocodeResponse.ok) {
@@ -472,8 +468,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('Unable to find coordinates for the given ZIP code');
             }
             const { lat, lng } = geocodeData.results[0].geometry.location;
-
-            const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}&type=${currentSearchType}`);
+    
+            // Update the query to include the interest type
+            const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}&type=${interestType}&keyword=${interestType.replace('_', ' ')}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -482,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 createGraph(data.results, zipCode, lat, lng);
             } else {
                 console.log('No results found');
-                d3.select("#graph").html("<p class='text-center text-lg text-gray-600 mt-8'>No results found for this ZIP code.</p>");
+                d3.select("#graph").html("<p class='text-center text-lg text-gray-600 mt-8'>No results found for this ZIP code and interest type.</p>");
             }
         } catch (error) {
             console.error('Error fetching data:', error);

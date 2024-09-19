@@ -28,31 +28,31 @@
         <h1 class="text-4xl font-bold relative z-10"><i class="fas fa-map-marked-alt mr-2"></i> City<span>Circuit</span></h1>
         <div class="absolute bottom-0 left-0 w-full h-8 bg-white rounded-t-full"></div>
     </header>
-    <nav class="bg-white px-4 py-4 flex flex-col items-center justify-center shadow-md -mt-2">
-        <div class="text-center mb-4">
-            <p class="text-lg">Enter a ZIP code to discover nearby places of interest!</p>
+    <nav class="bg-white px-4 py-4 shadow-md -mt-2">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-4">
+                <p class="text-lg">Discover nearby places of interest!</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <select id="interestType" class="px-2 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:border-orange-500">
+                    <option value="restaurant">Restaurants</option>
+                    <option value="museum">Museums</option>
+                    <option value="movie_theater">Movie Theaters</option>
+                    <option value="park">Parks</option>
+                    <option value="shopping_mall">Shopping Malls</option>
+                </select>
+                <input type="text" id="locationInput" placeholder="Enter ZIP code" class="px-4 py-2 w-48 border-t border-b border-gray-300 focus:outline-none focus:border-orange-500">
+                <button id="searchButton" class="px-4 py-2 bg-orange-500 text-white rounded-r-md hover:bg-orange-600 focus:outline-none">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <select id="scoreOption" class="px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-orange-500">
+                    <option value="rating">Rating</option>
+                    <option value="reviews">Number of Reviews</option>
+                    <option value="distance">Distance</option>
+                    <option value="price">Price Level</option>
+                </select>
+            </div>
         </div>
-        <div class="flex justify-center space-x-2 mb-4">
-            <select id="interestType" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-orange-500">
-                <option value="restaurant">Restaurants</option>
-                <option value="museum">Museums</option>
-                <option value="movie_theater">Movie Theaters</option>
-                <option value="park">Parks</option>
-                <option value="shopping_mall">Shopping Malls</option>
-            </select>
-        </div>
-        <div class="flex items-center mr-4 mb-2">
-            <input type="text" id="locationInput" placeholder="Enter ZIP code" class="px-4 py-2 w-64 border border-gray-300 rounded-l-md focus:outline-none focus:border-orange-500">
-            <button id="searchButton" class="px-4 py-2 bg-orange-500 text-white rounded-r-md hover:bg-orange-600 focus:outline-none">
-                <i class="fas fa-search"></i> Search
-            </button>
-        </div>
-        <select id="scoreOption" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-orange-500 mb-2">
-            <option value="rating">Rating</option>
-            <option value="reviews">Number of Reviews</option>
-            <option value="distance">Distance</option>
-            <option value="price">Price Level</option>
-        </select>
     </nav>
     <main class="flex flex-col md:flex-row h-[calc(100vh-150px)] overflow-hidden">
         <div id="graph" class="flex-grow md:w-2/3 relative bg-gray-200 h-full min-h-[400px]">
