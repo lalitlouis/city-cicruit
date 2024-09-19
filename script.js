@@ -119,19 +119,20 @@ function updateGraph(option) {
                         return Math.min(estimatedFontSize, 12) + "px"; // Max font size of 12px
                     });
 
-                group.append("text")
+                    group.append("text")
                     .attr("class", "node-close")
                     .text('×')
                     .attr("font-size", "12px")
                     .attr("fill", "red")
                     .attr("text-anchor", "end")
                     .attr("dx", d => calculateNodeSize(d, maxScore) - 5)
-                    .attr("dy", -d => calculateNodeSize(d, maxScore) + 15)
+                    .attr("dy", d => -calculateNodeSize(d, maxScore) + 15) // Corrected line
                     .on('click', (event, d) => {
                         event.stopPropagation();
                         currentData = currentData.filter(node => node !== d);
                         updateGraph(d3.select('#scoreOption').property('value'));
                     });
+                
 
                 return group;
             },
