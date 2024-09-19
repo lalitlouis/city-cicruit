@@ -6,11 +6,9 @@ let zipLat, zipLng, currentZipCode;
 // Include the D3 color scale
 const colorScale = d3.scaleOrdinal(d3.schemeSet2);
 
-// Initialize tooltip using the updated d3-tip
-const tip = d3Tip() // Note the change from 'd3.tip()' to 'd3Tip()'
-    .attr('class', 'd3-tip')
-    .offset([-10, 0])
-    .html(d => `<strong>${d.name}</strong><br/>Rating: ${d.rating || 'N/A'}`);
+
+// Select the tooltip div
+const tooltip = d3.select("#tooltip");
 
 
 
@@ -93,7 +91,7 @@ function updateGraph(option) {
         .force("center", d3.forceCenter(width / 2, height / 2))
         .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
 
-    // Create node groups to hold circle, label, and close button
+    // When creating your nodes
     const nodeGroup = g.selectAll(".node-group")
         .data(currentData, d => d.place_id)
         .join(
@@ -102,13 +100,19 @@ function updateGraph(option) {
                     .attr("class", "node-group")
                     .call(drag);
 
-                // When creating your nodes
                 group.append("circle")
-                .attr("r", d => calculateNodeSize(d, maxScore))
-                .attr("fill", d => colorScale(d.name))
-                .on('click', (event, d) => showInfo(d))
-                .on('mouseover', (event, d) => tip.show(d, event.target)) // Updated handler
-                .on('mouseout', tip.hide);
+                    .attr("r", d => calculateNodeSize(d, maxScore))
+                    .attr("fill", d => colorScale(d.name))
+                    .on("click", (event, d) => showInfo(d))
+                    .on('mouseover', (event, d) => {
+                        tooltip.transition().duration(200).style('opacity', 0.9);
+                        tooltip.html(`<strong>${d.name}</strong><br/>Rating: ${d.rating || 'N/A'}`)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 28) + 'px');
+                    })
+                    .on('mouseout', () => {
+                        tooltip.transition().duration(500).style('opacity', 0);
+                    });
 
                 group.append("text")
                     .attr("class", "node-label")
