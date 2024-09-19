@@ -41,11 +41,79 @@ nav {
     margin-right: 1em;
 }
 
-.search-container {
-    display: flex;
-    align-items: center;
-    margin-right: 1em;
+#locationInput {
+    padding: 0.5em;
+    width: 250px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    outline: none;
 }
+
+#locationInput:focus {
+    border-color: #ff4b2b;
+}
+
+#searchButton {
+    padding: 0.5em;
+    background-color: #ff4b2b;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#searchButton i {
+    font-size: 1em;
+}
+
+#searchButton:hover {
+    background-color: #ff3a1a;
+}
+
+#scoreOption {
+    padding: 0.5em;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    outline: none;
+}
+
+#scoreOption:focus {
+    border-color: #ff4b2b;
+}
+
+/* Main content layout */
+main {
+    display: flex;
+    height: calc(100vh - 150px);
+    overflow: hidden;
+}
+
+#graph {
+    flex: 2;
+    background: #f0f0f0;
+    position: relative;
+}
+
+#infoPanel {
+    flex: 1;
+    padding: 1em;
+    overflow-y: auto;
+    background-color: #fff;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+}
+
+/* Nodes styling */
+circle {
+    stroke: #fff;
+    stroke-width: 2px;
+}
+
+text {
+    font-size: 0.8em;
+    fill: #333;
+}
+
 
 .info-card {
     background-color: #ffffff;
@@ -118,10 +186,6 @@ nav {
     border-bottom: 2px solid #ff4b2b;
 }
 
-
-.tab.active {
-    background-color: #ccc;
-}
 
 .tab-content {
     display: none;
