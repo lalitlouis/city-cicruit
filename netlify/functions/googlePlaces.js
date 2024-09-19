@@ -8,7 +8,7 @@ exports.handler = async function(event, context) {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  const { action, zipCode, lat, lng, placeId } = queryStringParameters;
+  const { action, zipCode, lat, lng, placeId, type, keyword } = queryStringParameters;
 
   try {
     let url, params;
@@ -24,10 +24,12 @@ exports.handler = async function(event, context) {
       params = {
         location: `${lat},${lng}`,
         radius: 5000, // 5km radius
-        type: 'restaurant', // or whatever type you're searching for
+        type: type || 'restaurant',
+        keyword: keyword || '',
         key: API_KEY
       };
-    } else if (action === 'placeDetails') {
+    }
+      else if (action === 'placeDetails') {
       url = 'https://maps.googleapis.com/maps/api/place/details/json';
       params = {
         place_id: placeId,

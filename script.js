@@ -3,10 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let svg, g, zoom, simulation;
     let currentData = [];
     let zipLat, zipLng, currentZipCode;
-    let currentSearchType = 'restaurant';
 
-    // Include the D3 color scale
-    const colorScale = d3.scaleOrdinal(d3.schemeSet2);
+    // Color scale for nodes
+    const colorScale = d3.scaleLinear()
+        .domain([0, 5])  // Assuming scores are from 0 to 5
+        .range(["#ff4e4e", "#4eff4e"]);  // Red to Green
 
     // Select the tooltip div
     const tooltip = d3.select("#tooltip");
@@ -60,36 +61,34 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("No data to display");
             return;
         }
-    
+
         d3.select("#graph").select("svg").remove();
-    
+
         const width = document.getElementById('graph').clientWidth;
         const height = document.getElementById('graph').clientHeight;
-    
+
         svg = d3.select("#graph")
             .append("svg")
             .attr("width", width)
             .attr("height", height);
-    
+
         g = svg.append("g");
-    
+
         zoom = d3.zoom()
             .scaleExtent([0.5, 5])
             .on("zoom", (event) => {
                 g.attr("transform", event.transform);
             });
-    
+
         svg.call(zoom);
-    
+
         currentData.forEach(d => {
             d.score = calculateScore(d, option);
         });
-    
-        const maxScore = Math.max(...currentData.map(d => d.score));
 
         simulation = d3.forceSimulation(currentData)
             .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(d => calculateNodeSize(d, maxScore) + 2));
+            .force("collision", d3.forceCollide().radius(20));
 
         const nodeGroup = g.selectAll(".node-group")
             .data(currentData, d => d.place_id)
@@ -100,8 +99,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         .call(drag);
 
                     group.append("circle")
-                        .attr("r", d => calculateNodeSize(d, maxScore))
-                        .attr("fill", d => colorScale(d.name))
+                        .attr("r", 15)
+                        .attr("fill", d => colorScale(d.score))
                         .on("click", (event, d) => showInfo(d))
                         .on('mouseover', (event, d) => {
                             tooltip.transition().duration(200).style('opacity', 0.9);
@@ -117,60 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         .attr("class", "node-label text-white pointer-events-none")
                         .attr("text-anchor", "middle")
                         .attr("dominant-baseline", "central")
-                        .each(function(d) {
-                            const el = d3.select(this);
-                            const radius = calculateNodeSize(d, maxScore);
-                            let fontSize = 12;
-                            el.text(d.name)
-                                .attr('font-size', fontSize);
-                            
-                            while (this.getComputedTextLength() > radius * 1.8 && fontSize > 6) {
-                                fontSize--;
-                                el.attr('font-size', fontSize);
-                            }
-                            
-                            if (this.getComputedTextLength() > radius * 1.8) {
-                                const words = d.name.split(/\s+/);
-                                el.text('');
-                                words.forEach((word, i) => {
-                                    el.append('tspan')
-                                        .text(word)
-                                        .attr('x', 0)
-                                        .attr('dy', i ? '1.2em' : 0);
-                                });
-                            }
-                        });
-
-                    group.append("circle")
-                        .attr("class", "node-close-bg")
-                        .attr("r", 8)
-                        .attr("cx", d => calculateNodeSize(d, maxScore) - 5)
-                        .attr("cy", d => -calculateNodeSize(d, maxScore) + 15)
-                        .attr("fill", "red")
-                        .style("opacity", 0)
-                        .style("cursor", "pointer");
-
-                    group.append("text")
-                        .attr("class", "node-close text-white cursor-pointer")
-                        .text('×')
-                        .attr("font-size", "12px")
-                        .attr("text-anchor", "middle")
-                        .attr("dominant-baseline", "central")
-                        .attr("x", d => calculateNodeSize(d, maxScore) - 5)
-                        .attr("y", d => -calculateNodeSize(d, maxScore) + 15)
-                        .style("opacity", 0)
-                        .on('click', (event, d) => {
-                            event.stopPropagation();
-                            currentData = currentData.filter(node => node !== d);
-                            updateGraph(d3.select('#scoreOption').property('value'));
-                        });
-
-                    group.on("mouseover", function() {
-                        d3.select(this).selectAll(".node-close, .node-close-bg").style("opacity", 1);
-                    })
-                    .on("mouseout", function() {
-                        d3.select(this).selectAll(".node-close, .node-close-bg").style("opacity", 0);
-                    });
+                        .text(d => d.name.substring(0, 2));
 
                     return group;
                 },
@@ -178,43 +124,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 exit => exit.remove()
             );
 
-        const topThreeNodes = nodeGroup.filter((d, i) => i < 3);
-        topThreeNodes.append("circle")
-            .attr("r", d => calculateNodeSize(d, maxScore) + 5)
-            .attr("fill", "none")
-            .attr("stroke", d => colorScale(d.name))
-            .attr("stroke-width", 2)
-            .attr("opacity", 0.5)
-            .call(pulse, maxScore);  // Pass maxScore to pulse function
-    
         simulation.on("tick", () => {
             nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
-        });
-    }
-
-    function calculateNodeSize(place, maxScore) {
-        const minSize = 30;
-        const maxSize = 100;
-        const sizeScale = d3.scaleSqrt()
-            .domain([0, maxScore])
-            .range([minSize, maxSize]);
-        return sizeScale(place.score);
-    }
-
-    function pulse(selection, maxScore) {
-        selection.each(function() {
-            const circle = d3.select(this);
-            const initialRadius = parseFloat(circle.attr("r"));
-            
-            (function repeat() {
-                circle.transition()
-                    .duration(1000)
-                    .attr("r", d => calculateNodeSize(d, maxScore) + 15)
-                    .transition()
-                    .duration(1000)
-                    .attr("r", initialRadius)
-                    .on("end", repeat);
-            })();
         });
     }
 
@@ -278,58 +189,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const item = shortlistContainer.append('div')
-            .attr('class', 'shortlist-item inline-block m-2');
+            .attr('class', 'shortlist-item p-2 mb-2 bg-gray-100 rounded flex justify-between items-center');
 
-        const svg = item.append('svg')
-            .attr('width', 60)
-            .attr('height', 60);
+        item.append('span')
+            .text(place.name)
+            .attr('class', 'cursor-pointer hover:text-blue-500')
+            .on('click', () => showInfo(place));
 
-        svg.append('circle')
-            .attr('cx', 30)
-            .attr('cy', 30)
-            .attr('r', 28)
-            .attr('fill', colorScale(place.name));
-
-        svg.append('text')
-            .attr('x', 30)
-            .attr('y', 30)
-            .attr('text-anchor', 'middle')
-            .attr('dominant-baseline', 'central')
-            .attr('fill', 'white')
-            .text(place.name.substring(0, 2))
-            .style('font-size', '14px');
-
-        svg.append('circle')
-            .attr('cx', 50)
-            .attr('cy', 10)
-            .attr('r', 8)
-            .attr('fill', 'red')
-            .attr('class', 'remove-button')
-            .style('cursor', 'pointer')
-            .on('click', () => {
-                item.remove();
-                currentData.push(place);
-                updateGraph(d3.select('#scoreOption').property('value'));
-            });
-
-        svg.append('text')
-            .attr('x', 50)
-            .attr('y', 10)
-            .attr('text-anchor', 'middle')
-            .attr('dominant-baseline', 'central')
-            .attr('fill', 'white')
+        item.append('button')
+            .attr('class', 'text-red-500 hover:text-red-700')
             .text('×')
-            .style('font-size', '12px')
-            .style('cursor', 'pointer')
             .on('click', () => {
                 item.remove();
                 currentData.push(place);
                 updateGraph(d3.select('#scoreOption').property('value'));
             });
-
-        item.on('click', () => {
-            showInfo(place);
-        });
     }
 
     d3.select('#scoreOption').on('change', function () {
@@ -452,12 +326,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const locationInput = document.getElementById('locationInput');
         const zipCode = locationInput.value;
         const interestType = document.getElementById('interestType').value;
-    
+
         if (!zipCode) {
             alert('Please enter a ZIP code.');
             return;
         }
-    
+
         try {
             const geocodeResponse = await fetch(`/.netlify/functions/googlePlaces?action=geocode&zipCode=${zipCode}`);
             if (!geocodeResponse.ok) {
@@ -468,8 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('Unable to find coordinates for the given ZIP code');
             }
             const { lat, lng } = geocodeData.results[0].geometry.location;
-    
-            // Update the query to include the interest type
+
             const response = await fetch(`/.netlify/functions/googlePlaces?action=nearbySearch&lat=${lat}&lng=${lng}&type=${interestType}&keyword=${interestType.replace('_', ' ')}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
