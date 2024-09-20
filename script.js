@@ -3,11 +3,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let svg, g, zoom, simulation;
     let currentData = [];
     let zipLat, zipLng, currentZipCode;
+    let tierSizes = [30, 20, 15]; // Sizes for Tier 1, 2, and 3
+    let selectedTiers = [true, true, true]; // Initially all tiers are selected
 
-    // Color scale for nodes
-    const colorScale = d3.scaleLinear()
-        .domain([0, 5])  // Assuming scores are from 0 to 5
-        .range(["#ff4e4e", "#4eff4e"]);  // Red to Green
+    // Color scale for tiers
+    const tierColors = ['#4eff4e', '#ffff4e', '#ff4e4e'];
 
     // Select the tooltip div
     const tooltip = d3.select("#tooltip");
@@ -42,6 +42,16 @@ document.addEventListener('DOMContentLoaded', function() {
             default:
                 return 1;
         }
+    }
+
+    function calculateTier(score, allScores) {
+        const sortedScores = allScores.sort((a, b) => b - a);
+        const threshold1 = sortedScores[Math.floor(sortedScores.length / 3)];
+        const threshold2 = sortedScores[Math.floor(2 * sortedScores.length / 3)];
+        
+        if (score >= threshold1) return 0; // Tier 1
+        if (score >= threshold2) return 1; // Tier 2
+        return 2; // Tier 3
     }
 
     function createGraph(data, zipCode, lat, lng) {
@@ -86,9 +96,14 @@ document.addEventListener('DOMContentLoaded', function() {
             d.score = calculateScore(d, option);
         });
 
+        const allScores = currentData.map(d => d.score);
+        currentData.forEach(d => {
+            d.tier = calculateTier(d.score, allScores);
+        });
+
         simulation = d3.forceSimulation(currentData)
             .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(20));
+            .force("collision", d3.forceCollide().radius(d => tierSizes[d.tier] + 2));
 
         const nodeGroup = g.selectAll(".node-group")
             .data(currentData, d => d.place_id)
@@ -99,8 +114,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         .call(drag);
 
                     group.append("circle")
-                        .attr("r", 15)
-                        .attr("fill", d => colorScale(d.score))
+                        .attr("r", d => tierSizes[d.tier])
+                        .attr("fill", d => tierColors[d.tier])
+                        .attr("class", d => `tier-${d.tier + 1}`)
                         .on("click", (event, d) => showInfo(d))
                         .on('mouseover', (event, d) => {
                             tooltip.transition().duration(200).style('opacity', 0.9);
@@ -124,9 +140,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 exit => exit.remove()
             );
 
+        applyPulsatingEffect();
+
         simulation.on("tick", () => {
             nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
         });
+    }
+
+    function applyPulsatingEffect() {
+        for (let i = 0; i < 3; i++) {
+            if (selectedTiers[i]) {
+                d3.selectAll(`.tier-${i + 1}`)
+                    .transition()
+                    .duration(1000)
+                    .attr("r", d => tierSizes[d.tier] * 1.2)
+                    .transition()
+                    .duration(1000)
+                    .attr("r", d => tierSizes[d.tier])
+                    .on("end", function() { d3.select(this).call(applyPulsatingEffect); });
+            } else {
+                d3.selectAll(`.tier-${i + 1}`)
+                    .transition()
+                    .duration(500)
+                    .attr("r", d => tierSizes[d.tier]);
+            }
+        }
     }
 
     const drag = d3.drag()
@@ -322,6 +360,16 @@ document.addEventListener('DOMContentLoaded', function() {
         d3.select(`#${tabName}Tab`).classed("hidden", false);
     }
 
+    function toggleTier(tierIndex) {
+        selectedTiers[tierIndex] = !selectedTiers[tierIndex];
+        document.getElementById(`tier${tierIndex + 1}Button`).classList.toggle('opacity-50');
+        applyPulsatingEffect();
+    }
+
+    document.getElementById('tier1Button').addEventListener('click', () => toggleTier(0));
+    document.getElementById('tier2Button').addEventListener('click', () => toggleTier(1));
+    document.getElementById('tier3Button').addEventListener('click', () => toggleTier(2));
+
     document.getElementById('searchButton').addEventListener('click', async () => {
         const locationInput = document.getElementById('locationInput');
         const zipCode = locationInput.value;
@@ -352,7 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 createGraph(data.results, zipCode, lat, lng);
             } else {
                 console.log('No results found');
-                d3.select("#graph").html("<p class='text-center text-lg text-gray-600 mt-8'>No results found for this ZIP code and interest type.</p>");
+                d3.select("#graph").html("<p class='text-center text-lg text-gray-400 mt-8'>No results found for this ZIP code and interest type.</p>");
             }
         } catch (error) {
             console.error('Error fetching data:', error);
