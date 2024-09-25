@@ -5,8 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let zipLat, zipLng, currentZipCode;
     let nodeSizes = [30, 20, 15]; // Sizes for top, middle, and bottom third
 
-    // Color scale for tiers
-    const tierColors = ['#4eff4e', '#ffff4e', '#ff4e4e'];
+    // Color scale for nodes
+    const nodeColors = ['#4eff4e', '#ffff4e', '#ff4e4e'];
 
     // Select the tooltip div
     const tooltip = d3.select("#tooltip");
