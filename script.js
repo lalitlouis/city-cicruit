@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateGraph(d3.select('#scoreOption').property('value'));
     }
 
+
     function updateGraph(option) {
         if (!currentData || currentData.length === 0) {
             console.log("No data to display");
@@ -227,11 +228,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const item = shortlistContainer.append('div')
-            .attr('class', 'shortlist-item p-2 mb-2 bg-gray-100 rounded flex justify-between items-center');
+            .attr('class', 'shortlist-item p-2 mb-2 bg-purple-100 rounded-full flex justify-between items-center');
 
         item.append('span')
             .text(place.name)
-            .attr('class', 'cursor-pointer hover:text-blue-500')
+            .attr('class', 'cursor-pointer hover:text-purple-700')
             .on('click', () => showInfo(place));
 
         item.append('button')
