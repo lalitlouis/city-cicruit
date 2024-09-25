@@ -3,8 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let svg, g, zoom, simulation;
     let currentData = [];
     let zipLat, zipLng, currentZipCode;
-    let tierSizes = [30, 20, 15]; // Sizes for Tier 1, 2, and 3
-    let selectedTiers = [true, true, true]; // Initially all tiers are selected
+    let nodeSizes = [30, 20, 15]; // Sizes for top, middle, and bottom third
 
     // Color scale for tiers
     const tierColors = ['#4eff4e', '#ffff4e', '#ff4e4e'];
@@ -77,13 +76,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const width = document.getElementById('graph').clientWidth;
         const height = document.getElementById('graph').clientHeight;
+        const margin = { top: 20, right: 20, bottom: 20, left: 20 };
 
         svg = d3.select("#graph")
             .append("svg")
             .attr("width", width)
             .attr("height", height);
 
-        g = svg.append("g");
+        g = svg.append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
 
         zoom = d3.zoom()
             .scaleExtent([0.5, 5])
@@ -97,14 +98,23 @@ document.addEventListener('DOMContentLoaded', function() {
             d.score = calculateScore(d, option);
         });
 
-        const allScores = currentData.map(d => d.score);
+        const sortedScores = currentData.map(d => d.score).sort((a, b) => b - a);
+        const threshold1 = sortedScores[Math.floor(sortedScores.length / 3)];
+        const threshold2 = sortedScores[Math.floor(2 * sortedScores.length / 3)];
+
         currentData.forEach(d => {
-            d.tier = calculateTier(d.score, allScores);
+            if (d.score >= threshold1) {
+                d.sizeCategory = 0;
+            } else if (d.score >= threshold2) {
+                d.sizeCategory = 1;
+            } else {
+                d.sizeCategory = 2;
+            }
         });
 
         simulation = d3.forceSimulation(currentData)
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(d => tierSizes[d.tier] + 2));
+            .force("center", d3.forceCenter((width - margin.left - margin.right) / 2, (height - margin.top - margin.bottom) / 2))
+            .force("collision", d3.forceCollide().radius(d => nodeSizes[d.sizeCategory] + 2));
 
         const nodeGroup = g.selectAll(".node-group")
             .data(currentData, d => d.place_id)
@@ -115,9 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         .call(drag);
 
                     group.append("circle")
-                        .attr("r", d => tierSizes[d.tier])
-                        .attr("fill", d => tierColors[d.tier])
-                        .attr("class", d => `tier-${d.tier + 1}`)
+                        .attr("r", d => nodeSizes[d.sizeCategory])
+                        .attr("fill", d => nodeColors[d.sizeCategory])
                         .on("click", (event, d) => showInfo(d))
                         .on('mouseover', (event, d) => {
                             tooltip.transition().duration(200).style('opacity', 0.9);
@@ -141,32 +150,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 exit => exit.remove()
             );
 
-        applyPulsatingEffect();
-
         simulation.on("tick", () => {
             nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
         });
     }
 
-    function applyPulsatingEffect() {
-        for (let i = 0; i < 3; i++) {
-            if (selectedTiers[i]) {
-                d3.selectAll(`.tier-${i + 1}`)
-                    .transition()
-                    .duration(1000)
-                    .attr("r", d => tierSizes[d.tier] * 1.2)
-                    .transition()
-                    .duration(1000)
-                    .attr("r", d => tierSizes[d.tier])
-                    .on("end", function() { d3.select(this).call(applyPulsatingEffect); });
-            } else {
-                d3.selectAll(`.tier-${i + 1}`)
-                    .transition()
-                    .duration(500)
-                    .attr("r", d => tierSizes[d.tier]);
-            }
-        }
-    }
 
     const drag = d3.drag()
         .on('start', dragstarted)

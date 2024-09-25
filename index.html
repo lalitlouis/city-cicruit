@@ -72,13 +72,8 @@
         </div>
     </nav>
     <main class="flex flex-col md:flex-row h-[calc(100vh-200px)] overflow-hidden">
-        <div id="graph" class="flex-grow md:w-2/3 relative bg-black h-full min-h-[400px]">
+        <div id="graph" class="flex-grow md:w-2/3 relative bg-black h-full min-h-[400px] mx-4">
             <p id="placeholderMessage" class="text-center text-lg text-gray-400 mt-8">Please enter a ZIP code and click Search to load the graph.</p>
-            <div id="tierButtons" class="absolute top-4 left-4">
-                <button id="tier1Button" class="px-2 py-1 bg-green-500 text-white rounded mr-2">Tier 1</button>
-                <button id="tier2Button" class="px-2 py-1 bg-yellow-500 text-white rounded mr-2">Tier 2</button>
-                <button id="tier3Button" class="px-2 py-1 bg-red-400 text-white rounded">Tier 3</button>
-            </div>
             <div id="shortlist" class="absolute top-4 right-4 w-96 max-h-[calc(100%-2rem)] overflow-y-auto bg-white bg-opacity-90 p-4 rounded-lg shadow-lg">
                 <h3 class="text-xl font-semibold mb-2">Shortlist</h3>
                 <div id="shortlistContainer" class="flex flex-col"></div>
